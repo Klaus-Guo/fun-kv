@@ -6,7 +6,7 @@ pub struct DbConfig {
     pub persistency: bool,
     pub max_memory: Option<usize>,
     pub enable_caching: bool,
-    pub hash_bit: u32,
+    pub hash_bits: u32,
     pub enable_ttl: bool,
     pub ttl_config: Option<TtlConfig>,
     pub file_path: Option<String>,
@@ -16,7 +16,7 @@ pub struct DbConfig {
 pub struct DbBuilder {
     max_memory: Option<usize>,
     enable_caching: Option<bool>,
-    hash_bit: u32,
+    hash_bits: u32,
     enable_ttl: bool,
     ttl_config: Option<TtlConfig>,
     file_path: Option<String>,
@@ -28,7 +28,7 @@ impl DbBuilder {
         Self {
             max_memory: Some(4 * 1024 * 1024 * 1024),   // TODO: Const table
             enable_caching: None,
-            hash_bit: 23,                               // TODO: Const table
+            hash_bits: 23,                               // TODO: Const table
             enable_ttl: false,
             ttl_config: None,
             file_path: None,
@@ -51,8 +51,8 @@ impl DbBuilder {
         self
     }
 
-    pub fn hash_bit(mut self, bits: u32) -> Self {
-        self.hash_bit = bits;
+    pub fn hash_bits(mut self, bits: u32) -> Self {
+        self.hash_bits = bits;
         self
     }
 
@@ -97,13 +97,13 @@ impl DbBuilder {
     // TODO: parameterization a custom ttl_config
 
     pub fn build(self) -> Option<()> {
-        let persistency = self.file_path.is_none();
+        let persistency = !self.file_path.is_none();
 
         let config = DbConfig {
             persistency: persistency,
             max_memory: self.max_memory,
             enable_caching: self.enable_caching.unwrap_or(!persistency),
-            hash_bit: self.hash_bit,
+            hash_bits: self.hash_bits,
             enable_ttl: self.enable_ttl, 
             ttl_config: self.ttl_config,
             file_path: self.file_path, 
