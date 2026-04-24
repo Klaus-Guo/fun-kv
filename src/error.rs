@@ -1,3 +1,5 @@
+use std::io;
+
 use thiserror::Error;
 
 use crate::constants::*;
@@ -33,6 +35,9 @@ pub enum DbError {
 
     #[error("System error: {0}")]
     SystemError(i32),
+
+    #[error("IO error: {0}")]
+    IoError(#[from] io::Error),
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;
@@ -63,6 +68,7 @@ impl DbError {
             DbError::NumericOverflow => EOVERFLOW,
             DbError::SystemError(e) => *e,
             DbError::SizeMismatch { .. } => EMSGSIZE,
+            DbError::IoError(_) => EIO,
             _ => EIO,
         }
     }

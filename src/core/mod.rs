@@ -3,7 +3,7 @@ use std::{fs::File, sync::{Arc, RwLock}};
 use ahash::RandomState;
 use scc::HashMap;
 
-use crate::DbBuilder;
+use crate::{DbBuilder, stats::{Statistics, StatsSnapshot}};
 
 pub mod builder;
 pub mod ttl;
@@ -14,7 +14,7 @@ pub struct FunKV {
 
     pub(super) tree: Arc<SkipMap<Vec<u8>>, Arc<Record>>,    // TODO: SkipMap
 
-    pub(super) stats: Arc<Statistics>,   // TODO: Statistics
+    pub(super) stats: Arc<Statistics>,
 
     pub(super) write_buffer: Option<Arc<WriterBuffer>>,    // TODO: WriteBuffer
 
@@ -48,7 +48,10 @@ impl FunKV {
     }
 
     pub fn len(&self) -> usize {
-        // TODO: stats 
+        self.stats
+            .record_count
+            .load(std::sync::atomic::Ordering::Acquire)
+            as usize
     }
 
     pub fn is_empty(&self) -> bool {
@@ -56,11 +59,13 @@ impl FunKV {
     }
 
     pub fn memory_usage(&self) -> usize {
-        // TODO: stats
+        self.stats
+            .memory_usage
+            .load(std::sync::atomic::Ordering::Acquire)
     }
 
     pub fn stats(&self) -> StatsSnapshot {
-        // TODO: StatsSnapshot
+        self.stats.snapshot()
     }
 
     pub fn flush(&self) {

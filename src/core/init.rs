@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::RandomState, sync::{Arc, RwLock}};
 
-use crate::{DbConfig, core::FunKV, error::Result};
+use crate::{DbConfig, core::FunKV, error::Result, stats::Statistics};
 
 impl FunKV {
     pub fn build_with_config(config: DbConfig) -> Result<Self> {
@@ -10,7 +10,7 @@ impl FunKV {
 
         let metadata = Arc::new(RwLock::new(Metadata::new()));      // TODO: Metadata
 
-        let stats = Arc::new(Statistics::new());        // TODO: Statistics
+        let stats = Arc::new(Statistics::new());
 
         let cache = if config.enable_caching {
             Some(Arc::new(Cache::new(stats)))       // TODO: Cache
