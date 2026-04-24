@@ -4,5 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-scc = "2.1"
-ahash = "0.8"
+scc = "3.7.0"
+ahash = "0.8.12"
+
+# Error handling
+thiserror = "2.0.18"

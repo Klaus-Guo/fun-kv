@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use crate::core::ttl::TtlConfig;
+use crate::{constants::*, core::ttl::TtlConfig};
 
 pub struct DbConfig {
     pub persistency: bool,
@@ -26,9 +26,9 @@ pub struct DbBuilder {
 impl DbBuilder {
     pub fn new() -> Self {
         Self {
-            max_memory: Some(4 * 1024 * 1024 * 1024),   // TODO: Const table
+            max_memory: Some(DEFAULT_MAX_MEMORY),
             enable_caching: None,
-            hash_bits: 23,                               // TODO: Const table
+            hash_bits: DEFAULT_HASH_BITS,                               
             enable_ttl: false,
             ttl_config: None,
             file_path: None,
@@ -77,7 +77,7 @@ impl DbBuilder {
             enabled: true,
             interval: Duration::from_millis(interval), 
             max_time_per_run: Duration::from_millis(max_time), 
-            max_iterations: 16, 
+            max_iterations: DEFAULT_ITERATION, 
             expiry_threshold: threshold, 
             sample_size 
         });
