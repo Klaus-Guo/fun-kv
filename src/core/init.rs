@@ -1,6 +1,6 @@
 use std::{collections::HashMap, hash::RandomState, sync::{Arc, RwLock}};
 
-use crate::{DbConfig, core::FunKV};
+use crate::{DbConfig, core::FunKV, error::Result};
 
 impl FunKV {
     pub fn build_with_config(config: DbConfig) -> Result<Self> {
