@@ -18,6 +18,12 @@ pub enum DbError {
     #[error("Timestamp is older than existing record")]
     OlderTimestamp,
 
+    #[error("Invalid argument")]
+    InvalidArgument,
+
+    #[error("Invalid device")]
+    InvalidDevice,
+
     #[error("Invalid key size: The size of key must between 1~{}", MAX_KEY_SIZE)] 
     InvalidKeySize,
 
@@ -26,6 +32,15 @@ pub enum DbError {
 
     #[error("Database is full")]
     DatabaseFull,
+
+    #[error("Duplicate key")]
+    DuplicateKey,
+
+    #[error("Corrupted data")]
+    CorruptedData,
+
+    #[error("Out of space")]
+    OutOfSpace,
 
     #[error("Numeric overflow")]
     NumericOverflow,
