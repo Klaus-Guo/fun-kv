@@ -35,6 +35,7 @@ impl FreeSpaceManager {
         }
     }
 
+    // TODO: Test when persistence_size is 0
     pub fn initialize(&mut self, persistence_size: u64) -> Result<()> {
         self.persistence_size = persistence_size;
 
@@ -103,6 +104,69 @@ impl FreeSpaceManager {
         }
     }
 
+    pub fn release_sectors(&mut self, start: u64, size: u64) -> Result<()> {
+        if start == 0 || size == 0 {
+            return Err(DbError::InvalidArgument);
+        }
+
+        if !self.is_valid_sector_range(start, size) {
+            return Err(DbError::InvalidArgument);
+        }
+
+        let merged = self.try_merge_spaces(start, size)?;
+
+        self.insert_free_space(merged)?;
+        
+        self.update_fragmentation();;
+
+        Ok(())
+    }
+
+    fn try_merge_spaces(&mut self, start: u64, size: u64) -> Result<SectorStat> {
+        let end = start + size;
+        let mut merged_start = start;
+        let mut merged_size = size;
+
+        let mut prev = None;
+
+        if let Some((&s, stat)) = self.by_start
+                    .range(..start)
+                    .rev()
+                    .next()
+        {
+            if s + stat.size == start {
+                prev = Some(stat.clone());
+            }
+        }
+
+        let next = self.by_start.get(&end).cloned();
+
+        if let Some(prev_stat) = prev {
+            self.btree_remover(&prev_stat);
+
+            merged_start = prev_stat.start;
+            merged_size = prev_stat.size;
+        }
+
+        if let Some(next_stat) = next {
+            self.btree_remover(&next_stat);
+
+            merged_size += next_stat.size;
+        }
+
+        Ok(SectorStat { 
+            start: merged_start, 
+            size: merged_size, 
+        })
+    }
+
+    fn btree_remover(&mut self, stat: &SectorStat) {
+        self.by_size.remove(&(stat.size, stat.start));
+        self.by_start.remove(&stat.start);
+
+        self.total_free -= stat.size * BLOCK_SIZE as u64;
+    }
+
     fn insert_free_space(&mut self, stat: SectorStat) -> Result<()> {
         if stat.size == 0 {
             return Err(DbError::InvalidArgument);
@@ -132,12 +196,17 @@ impl FreeSpaceManager {
             return false;
         }
 
+        self.is_valid_sector_range(stat.start, stat.size)
+    }
+
+    fn is_valid_sector_range(&self, start: u64, count: u64) -> bool {
         if self.persistence_size > 0 {
             let persistence_sectors = self.persistence_size / BLOCK_SIZE as u64;
-            if stat.start >= persistence_sectors {
+
+            if start >= persistence_sectors {
                 return false;
             }
-            if stat.start + stat.size > persistence_sectors {
+            if start + count > persistence_sectors {
                 return false;
             }
         }
@@ -166,5 +235,23 @@ impl FreeSpaceManager {
             .next_back()
             .map(|(_, stat)| stat.size * BLOCK_SIZE as u64)
             .unwrap_or(0)
+    }
+
+    pub fn get_free_chunks_count(&self) -> usize {
+        self.by_start.len()
+    }
+
+    pub fn get_total_free(&self) -> u64 {
+        self.total_free
+    }
+
+    pub fn get_fragmentation_percent(&self) -> u32 {
+        self.fragmentation_percent
+    }
+}
+
+impl Default for FreeSpaceManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
