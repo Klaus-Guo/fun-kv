@@ -1,8 +1,9 @@
-use std::{hash::RandomState, sync::{Arc, RwLock}};
+use std::sync::{Arc, RwLock};
 
+use ahash::RandomState;
 use scc::HashMap;
 
-use crate::{DbConfig, core::{FunKV, metadata::Metadata}, error::Result, stats::Statistics};
+use crate::{DbConfig, core::FunKV, error::Result, stats::Statistics, storage::metadata::Metadata};
 
 impl FunKV {
     pub fn build_with_config(config: DbConfig) -> Result<Self> {

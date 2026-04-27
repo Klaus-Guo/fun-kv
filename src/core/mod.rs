@@ -3,17 +3,16 @@ use std::{fs::File, sync::{Arc, RwLock}};
 use ahash::RandomState;
 use scc::HashMap;
 
-use crate::{DbBuilder, stats::{Statistics, StatsSnapshot}};
+use crate::{DbBuilder, stats::{Statistics, StatsSnapshot}, storage::metadata::Metadata};
 
 pub mod builder;
 pub mod ttl;
 pub mod init;
-pub mod metadata;
 
 pub struct FunKV {
     pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,  // TODO: Record
 
-    pub(super) tree: Arc<SkipMap<Vec<u8>>, Arc<Record>>,    // TODO: SkipMap
+    pub(super) tree: Arc<SkipMap<Vec<u8>, Arc<Record>>>,    // TODO: SkipMap
 
     pub(super) stats: Arc<Statistics>,
 
@@ -21,7 +20,7 @@ pub struct FunKV {
 
     pub(super) free_space: Arc<RwLock<FreeSpaceManager>>,   // TODO: FreeSpaceManager
 
-    pub(super)  _metadata: Arc<RwLock<Metadata>>,   // TODO: Metadata
+    pub(super)  _metadata: Arc<RwLock<Metadata>>,
 
     pub(super) persistency: bool,
     pub(super) enable_caching: bool,
