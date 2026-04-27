@@ -8,6 +8,7 @@ use crate::{DbBuilder, stats::{Statistics, StatsSnapshot}};
 pub mod builder;
 pub mod ttl;
 pub mod init;
+pub mod metadata;
 
 pub struct FunKV {
     pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,  // TODO: Record

@@ -9,3 +9,6 @@ ahash = "0.8.12"
 
 # Error handling
 thiserror = "2.0.18"
+
+# Bytes Operating
+bytemuck = { version = "1", features = ["derive"] }
