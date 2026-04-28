@@ -1,5 +1,6 @@
 pub mod core;
 pub mod storage;
+pub mod utils;
 pub mod error;
 pub mod constants;
 pub mod stats;

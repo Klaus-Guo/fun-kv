@@ -12,6 +12,7 @@ pub const MAX_PERSISTENT_SIZE: usize = TB;
 
 pub const DEFAULT_HASH_BITS: u32 = 23;
 pub const DEFAULT_ITERATION: usize = 16;
+pub const CACHE_BUCKETS: usize = 16384;
 
 // update this when changing the metadata structure
 pub const METADATA_VERSION: u32 = 1;
@@ -21,6 +22,11 @@ pub const RESERVED_SIZE: usize = 68;
 pub const METADATA_BLOCK_SIZE: u64 = 16;
 
 pub const BLOCK_SIZE: usize = 4096;
+
+pub const CACHE_HIGH_WATERMARK_MB: usize = 100;
+pub const CACHE_LOW_WATERMARK_MB: usize = 50;
+pub const MAX_SCANS: usize = 3;
+pub const CACHE_MAX_SIZE: usize = GB;
 
 // POSIX error codes
 pub const EINVAL: i32 = 22;

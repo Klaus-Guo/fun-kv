@@ -1,13 +1,15 @@
 use std::{fs::File, sync::{Arc, RwLock}};
 
 use ahash::RandomState;
+use crossbeam_skiplist::SkipMap;
 use scc::HashMap;
 
-use crate::{DbBuilder, stats::{Statistics, StatsSnapshot}, storage::metadata::Metadata};
+use crate::{DbBuilder, core::cache::Cache, stats::{Statistics, StatsSnapshot}, storage::{free_space_manager::FreeSpaceManager, metadata::Metadata}};
 
 pub mod builder;
 pub mod ttl;
 pub mod init;
+pub mod cache;
 
 pub struct FunKV {
     pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,  // TODO: Record
@@ -18,7 +20,7 @@ pub struct FunKV {
 
     pub(super) write_buffer: Option<Arc<WriterBuffer>>,    // TODO: WriteBuffer
 
-    pub(super) free_space: Arc<RwLock<FreeSpaceManager>>,   // TODO: FreeSpaceManager
+    pub(super) free_space: Arc<RwLock<FreeSpaceManager>>,
 
     pub(super)  _metadata: Arc<RwLock<Metadata>>,
 
@@ -26,7 +28,7 @@ pub struct FunKV {
     pub(super) enable_caching: bool,
     pub(super) max_memory: Option<usize>,
 
-    pub(super) cache: Option<Arc<ClockCache>>,      // TODO: ClockCache
+    pub(super) cache: Option<Arc<Cache>>,      // TODO: ClockCache
     #[cfg(unix)]
     pub(super) device_fd: Option<i32>,
     pub(super) device_size: u64,
