@@ -9,7 +9,7 @@ use crate::{
     DbBuilder,
     core::{cache::Cache, record::Record},
     stats::{Statistics, StatsSnapshot},
-    storage::{free_space_manager::FreeSpaceManager, metadata::Metadata},
+    storage::{free_space_manager::FreeSpaceManager, io::DiskIO, metadata::Metadata},
 };
 
 pub mod builder;
@@ -41,7 +41,7 @@ pub struct FunKV {
     pub(super) device_size: u64,
     pub(super) device_file: Option<File>,
 
-    pub(super) disk_io: Option<Arc<RwLock<DiskIO>>>, // TODO: DiskIO
+    pub(super) disk_io: Option<Arc<RwLock<DiskIO>>>,
 
     pub(super) enable_ttl: bool,
     pub(super) ttl: Arc<RwLock<Option<TtlSweeper>>>, // TODO: TtlSweeper

@@ -20,6 +20,7 @@ pub const SIGNATURE: &[u8; SIGNATURE_SIZE] = b"FUNKV_SIG";
 pub const SIGNATURE_SIZE: usize = 9;
 pub const RESERVED_SIZE: usize = 68;
 pub const METADATA_BLOCK_SIZE: u64 = 16;
+pub const METADATA_BLOCK: u64 = 0;
 
 pub const BLOCK_SIZE: usize = 4096;
 pub const SECTOR_HEADER_SIZE: usize = 4;
@@ -54,3 +55,7 @@ pub const LARGE_ALLOC_THRESHOLD: usize = 8192;
 
 pub const PAGE_SIZE: usize = 4096;
 pub const PAGE_MASK: usize = PAGE_SIZE - 1;
+
+pub const IOURING_SQPOLL_IDLE_MS: u32 = 1000;
+pub const IOURING_QUEUE_SIZE: u32 = 256;
+pub const IOURING_MAX_BATCH: usize = 128;

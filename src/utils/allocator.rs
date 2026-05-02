@@ -64,6 +64,7 @@ impl Allocator {
     pub fn deallocate_aligned(ptr: NonNull<u8>, size: usize, alignment: usize) {
         #[cfg(unix)]
         {
+            let _ = alignment;
             unsafe {
                 libc::free(ptr.as_ptr() as *mut libc::c_void);
             }

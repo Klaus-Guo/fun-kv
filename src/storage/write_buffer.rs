@@ -9,7 +9,7 @@ use crossbeam_channel::Sender;
 use crossbeam_utils::CachePadded;
 use parking_lot::{Mutex, RwLock};
 
-use crate::{constants::Operation, core::record::Record, stats::Statistics, storage::free_space_manager::FreeSpaceManager, error::Result};
+use crate::{constants::Operation, core::record::Record, error::Result, stats::Statistics, storage::{free_space_manager::FreeSpaceManager, io::DiskIO}};
 
 #[repr(align(64))]
 pub struct ShardedWriteBuffer {
