@@ -12,13 +12,13 @@ pub struct TtlConfig {
 
 impl Default for TtlConfig {
     fn default() -> Self {
-        Self { 
-            enabled: false, 
-            interval: Duration::from_millis(1000), 
-            max_time_per_run: Duration::from_millis(1), 
-            max_iterations: 16, 
-            expiry_threshold: 0.25, 
-            sample_size: 100 
+        Self {
+            enabled: false,
+            interval: Duration::from_millis(1000),
+            max_time_per_run: Duration::from_millis(1),
+            max_iterations: 16,
+            expiry_threshold: 0.25,
+            sample_size: 100,
         }
     }
 }

@@ -1,6 +1,10 @@
-use std::{collections::BTreeMap};
+use std::collections::BTreeMap;
 
-use crate::{constants::*, error::{DbError, Result}, stats};
+use crate::{
+    constants::*,
+    error::{DbError, Result},
+    stats,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SectorStat {
@@ -15,7 +19,7 @@ pub struct FreeSpaceManager {
     /// Sorted by start address
     by_start: BTreeMap<u64, SectorStat>,
 
-    /// Total free space in bytes 
+    /// Total free space in bytes
     total_free: u64,
 
     /// Persistence size in bytes
@@ -26,12 +30,12 @@ pub struct FreeSpaceManager {
 
 impl FreeSpaceManager {
     pub fn new() -> Self {
-        Self { 
-            by_size: BTreeMap::new(), 
-            by_start: BTreeMap::new(), 
-            total_free: 0, 
-            persistence_size: 0, 
-            fragmentation_percent: 0 
+        Self {
+            by_size: BTreeMap::new(),
+            by_start: BTreeMap::new(),
+            total_free: 0,
+            persistence_size: 0,
+            fragmentation_percent: 0,
         }
     }
 
@@ -42,7 +46,7 @@ impl FreeSpaceManager {
         let total_sectors = persistence_size / BLOCK_SIZE as u64;
 
         if total_sectors <= METADATA_BLOCK_SIZE {
-            return Err(DbError::InvalidDevice)
+            return Err(DbError::InvalidDevice);
         }
 
         let free_sectors = total_sectors - METADATA_BLOCK_SIZE;
@@ -116,8 +120,8 @@ impl FreeSpaceManager {
         let merged = self.try_merge_spaces(start, size)?;
 
         self.insert_free_space(merged)?;
-        
-        self.update_fragmentation();;
+
+        self.update_fragmentation();
 
         Ok(())
     }
@@ -129,11 +133,7 @@ impl FreeSpaceManager {
 
         let mut prev = None;
 
-        if let Some((&s, stat)) = self.by_start
-                    .range(..start)
-                    .rev()
-                    .next()
-        {
+        if let Some((&s, stat)) = self.by_start.range(..start).rev().next() {
             if s + stat.size == start {
                 prev = Some(stat.clone());
             }
@@ -154,9 +154,9 @@ impl FreeSpaceManager {
             merged_size += next_stat.size;
         }
 
-        Ok(SectorStat { 
-            start: merged_start, 
-            size: merged_size, 
+        Ok(SectorStat {
+            start: merged_start,
+            size: merged_size,
         })
     }
 
@@ -182,10 +182,8 @@ impl FreeSpaceManager {
 
         self.total_free += stat.size * BLOCK_SIZE as u64;
 
-        self.by_size
-            .insert((stat.size, stat.start), stat.clone());
-        self.by_start
-            .insert(stat.start, stat);
+        self.by_size.insert((stat.size, stat.start), stat.clone());
+        self.by_start.insert(stat.start, stat);
 
         Ok(())
     }

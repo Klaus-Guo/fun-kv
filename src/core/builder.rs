@@ -28,7 +28,7 @@ impl DbBuilder {
         Self {
             max_memory: Some(DEFAULT_MAX_MEMORY),
             enable_caching: None,
-            hash_bits: DEFAULT_HASH_BITS,                               
+            hash_bits: DEFAULT_HASH_BITS,
             enable_ttl: false,
             ttl_config: None,
             file_path: None,
@@ -67,19 +67,19 @@ impl DbBuilder {
     }
 
     pub fn ttl_config(
-        mut self, 
+        mut self,
         interval: u64,
         max_time: u64,
         threshold: f32,
-        sample_size: usize
+        sample_size: usize,
     ) -> Self {
-        self.ttl_config = Some(TtlConfig { 
+        self.ttl_config = Some(TtlConfig {
             enabled: true,
-            interval: Duration::from_millis(interval), 
-            max_time_per_run: Duration::from_millis(max_time), 
-            max_iterations: DEFAULT_ITERATION, 
-            expiry_threshold: threshold, 
-            sample_size 
+            interval: Duration::from_millis(interval),
+            max_time_per_run: Duration::from_millis(max_time),
+            max_iterations: DEFAULT_ITERATION,
+            expiry_threshold: threshold,
+            sample_size,
         });
         self
     }
@@ -104,9 +104,9 @@ impl DbBuilder {
             max_memory: self.max_memory,
             enable_caching: self.enable_caching.unwrap_or(!persistency),
             hash_bits: self.hash_bits,
-            enable_ttl: self.enable_ttl, 
+            enable_ttl: self.enable_ttl,
             ttl_config: self.ttl_config,
-            file_path: self.file_path, 
+            file_path: self.file_path,
             file_size: self.file_size,
         };
 

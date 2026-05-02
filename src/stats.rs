@@ -40,42 +40,42 @@ pub struct Statistics {
     pub ttl_expired_lazy: AtomicU64,
     pub ttl_expired_active: AtomicU64,
     pub ttl_cleaner_runs: AtomicU64,
-    pub keys_with_ttl: AtomicU64, 
+    pub keys_with_ttl: AtomicU64,
 }
 
 impl Statistics {
     pub fn new() -> Self {
-        Self { 
-            record_count: AtomicU32::new(0), 
-            memory_usage: AtomicUsize::new(0), 
-            disk_usage: AtomicU64::new(0), 
-            total_gets: AtomicU64::new(0), 
-            total_inserts: AtomicU64::new(0), 
-            total_updates: AtomicU64::new(0), 
-            total_deletes: AtomicU64::new(0), 
-            total_range_queries: AtomicU64::new(0), 
-            get_latency_ns: AtomicU64::new(0), 
-            insert_latency_ns: AtomicU64::new(0), 
-            delete_latency_ns: AtomicU64::new(0), 
-            cache_hits: AtomicU64::new(0), 
-            cache_misses: AtomicU64::new(0), 
-            cache_evictions: AtomicU64::new(0), 
-            cache_memory: AtomicUsize::new(0), 
-            writes_buffered: AtomicU64::new(0), 
-            writes_flushed: AtomicU64::new(0), 
-            write_failures: AtomicU64::new(0), 
-            flush_count: AtomicU64::new(0), 
-            disk_reads: AtomicU64::new(0), 
-            disk_writes: AtomicU64::new(0), 
-            disk_bytes_read: AtomicU64::new(0), 
-            disk_bytes_written: AtomicU64::new(0), 
-            key_not_found_errors: AtomicU64::new(0), 
-            out_of_memory_errors: AtomicU64::new(0), 
-            io_errors: AtomicU64::new(0), 
-            ttl_expired_lazy: AtomicU64::new(0), 
-            ttl_expired_active: AtomicU64::new(0), 
-            ttl_cleaner_runs: AtomicU64::new(0), 
-            keys_with_ttl: AtomicU64::new(0), 
+        Self {
+            record_count: AtomicU32::new(0),
+            memory_usage: AtomicUsize::new(0),
+            disk_usage: AtomicU64::new(0),
+            total_gets: AtomicU64::new(0),
+            total_inserts: AtomicU64::new(0),
+            total_updates: AtomicU64::new(0),
+            total_deletes: AtomicU64::new(0),
+            total_range_queries: AtomicU64::new(0),
+            get_latency_ns: AtomicU64::new(0),
+            insert_latency_ns: AtomicU64::new(0),
+            delete_latency_ns: AtomicU64::new(0),
+            cache_hits: AtomicU64::new(0),
+            cache_misses: AtomicU64::new(0),
+            cache_evictions: AtomicU64::new(0),
+            cache_memory: AtomicUsize::new(0),
+            writes_buffered: AtomicU64::new(0),
+            writes_flushed: AtomicU64::new(0),
+            write_failures: AtomicU64::new(0),
+            flush_count: AtomicU64::new(0),
+            disk_reads: AtomicU64::new(0),
+            disk_writes: AtomicU64::new(0),
+            disk_bytes_read: AtomicU64::new(0),
+            disk_bytes_written: AtomicU64::new(0),
+            key_not_found_errors: AtomicU64::new(0),
+            out_of_memory_errors: AtomicU64::new(0),
+            io_errors: AtomicU64::new(0),
+            ttl_expired_lazy: AtomicU64::new(0),
+            ttl_expired_active: AtomicU64::new(0),
+            ttl_cleaner_runs: AtomicU64::new(0),
+            keys_with_ttl: AtomicU64::new(0),
         }
     }
 
@@ -96,13 +96,15 @@ impl Statistics {
         } else {
             self.total_inserts.fetch_add(1, Ordering::Relaxed);
         }
-        self.insert_latency_ns.fetch_add(latency_ns, Ordering::Relaxed);
+        self.insert_latency_ns
+            .fetch_add(latency_ns, Ordering::Relaxed);
     }
 
     pub fn record_delete(&self, latency_ns: u64) {
         self.total_deletes.fetch_add(1, Ordering::Relaxed);
-        self.delete_latency_ns.fetch_add(latency_ns, Ordering::Relaxed);
-    } 
+        self.delete_latency_ns
+            .fetch_add(latency_ns, Ordering::Relaxed);
+    }
 
     pub fn record_range_query(&self) {
         self.total_range_queries.fetch_add(1, Ordering::Relaxed);
@@ -150,11 +152,10 @@ impl Statistics {
     }
 
     pub fn snapshot(&self) -> StatsSnapshot {
-        let total_ops = 
-            self.total_gets.load(Ordering::Relaxed) +
-            self.total_inserts.load(Ordering::Release) +
-            self.total_updates.load(Ordering::Relaxed) +
-            self.total_deletes.load(Ordering::Relaxed);
+        let total_ops = self.total_gets.load(Ordering::Relaxed)
+            + self.total_inserts.load(Ordering::Release)
+            + self.total_updates.load(Ordering::Relaxed)
+            + self.total_deletes.load(Ordering::Relaxed);
 
         let avg_get_latency = {
             let gets = self.total_gets.load(Ordering::Relaxed);
@@ -166,7 +167,8 @@ impl Statistics {
         };
 
         let avg_insert_latency = {
-            let inserts = self.total_inserts.load(Ordering::Relaxed) + self.total_updates.load(Ordering::Relaxed);
+            let inserts = self.total_inserts.load(Ordering::Relaxed)
+                + self.total_updates.load(Ordering::Relaxed);
             if inserts > 0 {
                 self.insert_latency_ns.load(Ordering::Relaxed) / inserts
             } else {

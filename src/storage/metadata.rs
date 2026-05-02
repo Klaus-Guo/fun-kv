@@ -1,7 +1,10 @@
-
 use bytemuck::{Pod, Zeroable};
 
-use std::{mem::{self, MaybeUninit}, slice::from_raw_parts, time::{Duration, SystemTime, UNIX_EPOCH}};
+use std::{
+    mem::{self, MaybeUninit},
+    slice::from_raw_parts,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
 use crate::constants::*;
 
@@ -86,14 +89,11 @@ impl Metadata {
         }
     }
 
-    #[deprecated(note = "This method is retained for potential future rollbacks; its use is strongly discouraged.")]
+    #[deprecated(
+        note = "This method is retained for potential future rollbacks; its use is strongly discouraged."
+    )]
     fn as_bytes_unsafe(&self) -> &[u8] {
-        unsafe {
-            from_raw_parts(
-                self as *const Self as *const u8, 
-                mem::size_of::<Self>()
-            )
-        }
+        unsafe { from_raw_parts(self as *const Self as *const u8, mem::size_of::<Self>()) }
     }
 
     fn get_time_now() -> u64 {

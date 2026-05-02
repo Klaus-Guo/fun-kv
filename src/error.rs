@@ -24,10 +24,13 @@ pub enum DbError {
     #[error("Invalid device")]
     InvalidDevice,
 
-    #[error("Invalid key size: The size of key must between 1~{}", MAX_KEY_SIZE)] 
+    #[error("Invalid key size: The size of key must between 1~{}", MAX_KEY_SIZE)]
     InvalidKeySize,
 
-    #[error("Invalid value size: The size of key must between 1~{}", MAX_VALUE_SIZE)]
+    #[error(
+        "Invalid value size: The size of key must between 1~{}",
+        MAX_VALUE_SIZE
+    )]
     InvalidValueSize,
 
     #[error("Database is full")]
@@ -66,7 +69,10 @@ impl From<i32> for DbError {
             22 => DbError::InvalidKeySize,
             28 => DbError::DatabaseFull,
             75 => DbError::NumericOverflow,
-            90 => DbError::SizeMismatch { expected: 0, actual: 0 },
+            90 => DbError::SizeMismatch {
+                expected: 0,
+                actual: 0,
+            },
             _ => DbError::SystemError(errno),
         }
     }

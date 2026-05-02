@@ -1,43 +1,50 @@
-use std::{fs::File, sync::{Arc, RwLock}};
+use std::{fs::File, sync::Arc};
 
 use ahash::RandomState;
 use crossbeam_skiplist::SkipMap;
+use parking_lot::RwLock;
 use scc::HashMap;
 
-use crate::{DbBuilder, core::cache::Cache, stats::{Statistics, StatsSnapshot}, storage::{free_space_manager::FreeSpaceManager, metadata::Metadata}};
+use crate::{
+    DbBuilder,
+    core::{cache::Cache, record::Record},
+    stats::{Statistics, StatsSnapshot},
+    storage::{free_space_manager::FreeSpaceManager, metadata::Metadata},
+};
 
 pub mod builder;
-pub mod ttl;
-pub mod init;
 pub mod cache;
+pub mod init;
+pub mod record;
+pub mod ttl;
 
 pub struct FunKV {
-    pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,  // TODO: Record
+    pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>, // TODO: Record
 
-    pub(super) tree: Arc<SkipMap<Vec<u8>, Arc<Record>>>,    // TODO: SkipMap
+    pub(super) tree: Arc<SkipMap<Vec<u8>, Arc<Record>>>, // TODO: SkipMap
 
     pub(super) stats: Arc<Statistics>,
 
-    pub(super) write_buffer: Option<Arc<WriterBuffer>>,    // TODO: WriteBuffer
+    pub(super) write_buffer: Option<Arc<WriterBuffer>>, // TODO: WriteBuffer
 
     pub(super) free_space: Arc<RwLock<FreeSpaceManager>>,
 
-    pub(super)  _metadata: Arc<RwLock<Metadata>>,
+    pub(super) _metadata: Arc<RwLock<Metadata>>,
 
     pub(super) persistency: bool,
     pub(super) enable_caching: bool,
     pub(super) max_memory: Option<usize>,
 
-    pub(super) cache: Option<Arc<Cache>>,      // TODO: ClockCache
+    pub(super) cache: Option<Arc<Cache>>, // TODO: ClockCache
     #[cfg(unix)]
     pub(super) device_fd: Option<i32>,
     pub(super) device_size: u64,
     pub(super) device_file: Option<File>,
 
-    pub(super) disk_io: Option<Arc<RwLock<DiskIO>>>,        // TODO: DiskIO
+    pub(super) disk_io: Option<Arc<RwLock<DiskIO>>>, // TODO: DiskIO
 
     pub(super) enable_ttl: bool,
-    pub(super) ttl: Arc<RwLock<Option<TtlSweeper>>>,        // TODO: TtlSweeper
+    pub(super) ttl: Arc<RwLock<Option<TtlSweeper>>>, // TODO: TtlSweeper
 }
 
 impl FunKV {
@@ -46,14 +53,13 @@ impl FunKV {
     }
 
     pub fn contains_key(&self, key: &[u8]) -> bool {
-        self.hash_table.contains(key)
+        self.hash_table.contains_sync(key)
     }
 
     pub fn len(&self) -> usize {
         self.stats
             .record_count
-            .load(std::sync::atomic::Ordering::Acquire)
-            as usize
+            .load(std::sync::atomic::Ordering::Acquire) as usize
     }
 
     pub fn is_empty(&self) -> bool {
@@ -71,6 +77,6 @@ impl FunKV {
     }
 
     pub fn flush(&self) {
-        self.flush_all()    // TODO: flush_all
+        self.flush_all() // TODO: flush_all
     }
 }

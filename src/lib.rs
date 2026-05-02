@@ -1,8 +1,8 @@
+pub mod constants;
 pub mod core;
+pub mod error;
+pub mod stats;
 pub mod storage;
 pub mod utils;
-pub mod error;
-pub mod constants;
-pub mod stats;
 
-pub use core::builder::{DbConfig, DbBuilder};
+pub use core::builder::{DbBuilder, DbConfig};

@@ -22,6 +22,7 @@ pub const RESERVED_SIZE: usize = 68;
 pub const METADATA_BLOCK_SIZE: u64 = 16;
 
 pub const BLOCK_SIZE: usize = 4096;
+pub const SECTOR_HEADER_SIZE: usize = 4;
 
 pub const CACHE_HIGH_WATERMARK_MB: usize = 100;
 pub const CACHE_LOW_WATERMARK_MB: usize = 50;
@@ -37,3 +38,13 @@ pub const EEXIST: i32 = 17;
 pub const EOVERFLOW: i32 = 75;
 pub const EMSGSIZE: i32 = 90;
 pub const EIO: i32 = 5;
+
+// Operation types
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Operation {
+    Insert,
+    Update,
+    Delete,
+    Get,
+    PartialUpdate,
+}

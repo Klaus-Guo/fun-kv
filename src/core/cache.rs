@@ -1,4 +1,10 @@
-use std::{mem, sync::{Arc, atomic::{self, AtomicBool, AtomicU32, AtomicUsize, Ordering}}};
+use std::{
+    mem,
+    sync::{
+        Arc,
+        atomic::{self, AtomicBool, AtomicU32, AtomicUsize, Ordering},
+    },
+};
 
 use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
@@ -16,7 +22,7 @@ pub struct Cache {
 
     eviction_lock: Mutex<()>,
 
-    stats: Arc<Statistics>
+    stats: Arc<Statistics>,
 }
 
 #[derive(Clone)]
@@ -37,13 +43,13 @@ impl Cache {
             .map(|_| RwLock::new(Vec::new()))
             .collect();
 
-        Self { 
-            buckets, 
-            clock_hand: AtomicUsize::new(0), 
-            high_watermark: AtomicUsize::new(CACHE_HIGH_WATERMARK_MB * MB), 
-            low_watermark: AtomicUsize::new(CACHE_LOW_WATERMARK_MB * MB), 
-            eviction_lock: Mutex::new(()), 
-            stats, 
+        Self {
+            buckets,
+            clock_hand: AtomicUsize::new(0),
+            high_watermark: AtomicUsize::new(CACHE_HIGH_WATERMARK_MB * MB),
+            low_watermark: AtomicUsize::new(CACHE_LOW_WATERMARK_MB * MB),
+            eviction_lock: Mutex::new(()),
+            stats,
         }
     }
 
@@ -112,9 +118,7 @@ impl Cache {
         };
 
         bucket.push(entry);
-        self.stats
-            .cache_memory
-            .fetch_add(size, Ordering::AcqRel);
+        self.stats.cache_memory.fetch_add(size, Ordering::AcqRel);
     }
 
     pub fn remove(&self, key: &[u8]) {
@@ -159,7 +163,7 @@ impl Cache {
             while entries_checked < total_entries && current_usage > target_usage {
                 let hand = self.clock_hand.fetch_add(1, Ordering::AcqRel) % CACHE_BUCKETS;
                 let mut bucket = self.buckets[hand].write();
-                
+
                 let mut i = 0;
                 while i < bucket.len() {
                     let entry = &bucket[i];
@@ -183,7 +187,7 @@ impl Cache {
                     if current_usage <= target_usage {
                         break;
                     }
-                } 
+                }
             }
 
             scans += 1;
@@ -195,11 +199,8 @@ impl Cache {
             bucket.write().clear();
         }
 
-        self.stats
-            .cache_memory
-            .store(0, Ordering::Release);
-        self.clock_hand
-            .store(0, Ordering::Release);
+        self.stats.cache_memory.store(0, Ordering::Release);
+        self.clock_hand.store(0, Ordering::Release);
     }
 
     pub fn stats(&self) -> CacheStats {
@@ -218,9 +219,7 @@ impl Cache {
             self.high_watermark.store(high, Ordering::Release);
             self.low_watermark.store(low, Ordering::Release);
 
-            let current_usage = self.stats
-                .cache_memory
-                .load(Ordering::Acquire);
+            let current_usage = self.stats.cache_memory.load(Ordering::Acquire);
 
             if current_usage > high {
                 self.evict_entries();
