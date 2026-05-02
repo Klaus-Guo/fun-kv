@@ -48,3 +48,9 @@ pub enum Operation {
     Get,
     PartialUpdate,
 }
+
+pub const MALLOC_LIMIT: usize = 8192;
+pub const LARGE_ALLOC_THRESHOLD: usize = 8192;
+
+pub const PAGE_SIZE: usize = 4096;
+pub const PAGE_MASK: usize = PAGE_SIZE - 1;

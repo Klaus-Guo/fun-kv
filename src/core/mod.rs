@@ -19,9 +19,9 @@ pub mod record;
 pub mod ttl;
 
 pub struct FunKV {
-    pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>, // TODO: Record
+    pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,
 
-    pub(super) tree: Arc<SkipMap<Vec<u8>, Arc<Record>>>, // TODO: SkipMap
+    pub(super) tree: Arc<SkipMap<Vec<u8>, Arc<Record>>>,
 
     pub(super) stats: Arc<Statistics>,
 
@@ -35,7 +35,7 @@ pub struct FunKV {
     pub(super) enable_caching: bool,
     pub(super) max_memory: Option<usize>,
 
-    pub(super) cache: Option<Arc<Cache>>, // TODO: ClockCache
+    pub(super) cache: Option<Arc<Cache>>,
     #[cfg(unix)]
     pub(super) device_fd: Option<i32>,
     pub(super) device_size: u64,

@@ -4,12 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+# Memory allocator
+tikv-jemallocator = { version = "0.6", optional = true }
+
 # Data structures and synchronization
 scc = "3.7.0"
 ahash = "0.8.12"
 parking_lot = { version = "0.12", features = ["arc_lock"] }
 crossbeam-skiplist = "0.1.3"
 crossbeam-epoch = "0.9"
+crossbeam-utils = "0.8"
+crossbeam-channel = "0.5"
 
 # Memory management
 bytes = "1"
@@ -22,3 +27,18 @@ bytemuck = { version = "1", features = ["derive"] }
 
 # System
 num_cpus = "1.16"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+io-uring = "0.7"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+nix = { version = "0.31", features = ["fs", "mman"] }
+
+
+[features]
+default = ["jemalloc"]
+jemalloc = ["tikv-jemallocator"]
+system-alloc = []
+io_uring = []
+persistent = []
