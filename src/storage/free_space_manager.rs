@@ -3,7 +3,6 @@ use std::collections::BTreeMap;
 use crate::{
     constants::*,
     error::{DbError, Result},
-    stats,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
