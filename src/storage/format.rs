@@ -1,7 +1,5 @@
 use std::sync::atomic::Ordering;
 
-use libc::time;
-
 use crate::{constants::*, core::record::Record};
 
 pub trait RecordFormat: Send + Sync {

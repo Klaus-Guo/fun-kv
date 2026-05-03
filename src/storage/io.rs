@@ -331,7 +331,7 @@ impl DiskIO {
         size: usize,
         offset: libc::off_t,
     ) -> Result<()> {
-        let ret = libc::pread(self.fd, buf, size, offset);
+        let ret = unsafe { libc::pread(self.fd, buf, size, offset) };
         if ret < 0 {
             return Err(DbError::IoError(io::Error::last_os_error()));
         }
