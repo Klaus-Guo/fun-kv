@@ -56,6 +56,12 @@ pub enum DbError {
 
     #[error("IO error: {0}")]
     IoError(#[from] io::Error),
+
+    #[error("System shutting down")]
+    ShuttingDown,
+
+    #[error("Channel error")]
+    ChannelError,
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;

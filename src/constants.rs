@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 pub const KB: usize = 1024;
 pub const MB: usize = 1024 * KB;
 pub const GB: usize = 1024 * MB;
@@ -24,6 +26,7 @@ pub const METADATA_BLOCK: u64 = 0;
 
 pub const BLOCK_SIZE: usize = 4096;
 pub const SECTOR_HEADER_SIZE: usize = 4;
+pub const SECTOR_MARKER: u16 = 0xABCD;
 
 pub const CACHE_HIGH_WATERMARK_MB: usize = 100;
 pub const CACHE_LOW_WATERMARK_MB: usize = 50;
@@ -59,3 +62,7 @@ pub const PAGE_MASK: usize = PAGE_SIZE - 1;
 pub const IOURING_SQPOLL_IDLE_MS: u32 = 1000;
 pub const IOURING_QUEUE_SIZE: u32 = 256;
 pub const IOURING_MAX_BATCH: usize = 128;
+
+pub const WRITE_BUFFER_COUNT: usize = 1024;
+pub const WRITE_BUFFER_SIZE: usize = 16 * MB;
+pub const WRITE_BUFFER_FLUSH_INTERVAL: Duration = Duration::from_millis(100);

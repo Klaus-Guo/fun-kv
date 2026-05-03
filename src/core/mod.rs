@@ -9,7 +9,10 @@ use crate::{
     DbBuilder,
     core::{cache::Cache, record::Record},
     stats::{Statistics, StatsSnapshot},
-    storage::{free_space_manager::FreeSpaceManager, io::DiskIO, metadata::Metadata},
+    storage::{
+        free_space_manager::FreeSpaceManager, io::DiskIO, metadata::Metadata,
+        write_buffer::WriteBuffer,
+    },
 };
 
 pub mod builder;
@@ -25,7 +28,7 @@ pub struct FunKV {
 
     pub(super) stats: Arc<Statistics>,
 
-    pub(super) write_buffer: Option<Arc<WriterBuffer>>, // TODO: WriteBuffer
+    pub(super) write_buffer: Option<Arc<WriteBuffer>>,
 
     pub(super) free_space: Arc<RwLock<FreeSpaceManager>>,
 

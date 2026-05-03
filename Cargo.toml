@@ -28,6 +28,9 @@ bytemuck = { version = "1", features = ["derive"] }
 # System
 num_cpus = "1.16"
 
+# Random number generation
+rand = "0.10"
+
 [target.'cfg(target_os = "linux")'.dependencies]
 io-uring = "0.7"
 

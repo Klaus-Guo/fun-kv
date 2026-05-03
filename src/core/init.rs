@@ -7,16 +7,32 @@ use scc::HashMap;
 
 use crate::{
     DbConfig,
+    constants::*,
     core::{FunKV, cache::Cache},
     error::Result,
     stats::Statistics,
     storage::{
-        free_space_manager::FreeSpaceManager,
-        metadata::{self, Metadata},
+        free_space_manager::FreeSpaceManager, metadata::Metadata, write_buffer::WriteBuffer,
     },
 };
 
 impl FunKV {
+    pub fn new(file_path: Option<String>) -> Result<Self> {
+        let persistency = !file_path.is_none();
+        let config = DbConfig {
+            hash_bits: DEFAULT_HASH_BITS,
+            persistency,
+            enable_caching: persistency,
+            enable_ttl: false,
+            max_memory: Some(DEFAULT_MAX_MEMORY),
+            ttl_config: None,
+            file_path,
+            file_size: None,
+        };
+
+        Self::build_with_config(config)
+    }
+
     pub fn build_with_config(config: DbConfig) -> Result<Self> {
         let hash_table =
             HashMap::with_capacity_and_hasher(1 << config.hash_bits, RandomState::new());

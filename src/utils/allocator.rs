@@ -1,6 +1,6 @@
 #[cfg(unix)]
-use nix::sys::mman::{mmap_anonymous, munmap, MapFlags, ProtFlags};
-use std::alloc::{alloc, dealloc, Layout};
+use nix::sys::mman::{MapFlags, ProtFlags, mmap_anonymous, munmap};
+use std::alloc::{Layout, alloc, dealloc};
 #[cfg(unix)]
 use std::os::raw::c_void;
 use std::ptr::NonNull;
@@ -40,7 +40,8 @@ impl Allocator {
 
         #[cfg(not(unix))]
         {
-            let layout = Layout::from_size_align(size, alignment).map_err(|_| DbError::AllocationFailed)?;
+            let layout =
+                Layout::from_size_align(size, alignment).map_err(|_| DbError::AllocationFailed)?;
 
             unsafe {
                 let ptr = alloc(layout);
@@ -99,18 +100,20 @@ impl Allocator {
 
             let size = NonZeroUsize::new_unchecked(aligned_size);
             let ptr = mmap_anonymous(
-                None, 
-                size, 
-                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE, 
+                None,
+                size,
+                ProtFlags::PROT_READ | ProtFlags::PROT_WRITE,
                 MapFlags::MAP_PRIVATE,
-            ).map_err(|_| DbError::AllocationFailed)?;
+            )
+            .map_err(|_| DbError::AllocationFailed)?;
 
             Ok(ptr.cast())
         }
 
         #[cfg(not(unix))]
         {
-            let layout = Layout::from_size_align(aligned_size, PAGE_SIZE).map_err(|_| DbError::AllocationFailed)?;
+            let layout = Layout::from_size_align(aligned_size, PAGE_SIZE)
+                .map_err(|_| DbError::AllocationFailed)?;
 
             unsafe {
                 let ptr = alloc(layout);
@@ -164,12 +167,12 @@ impl AlignedBuffer {
 
         let ptr = Allocator::allocate_aligned(aligned_capacity, alignment)?;
 
-        Ok(Self { 
-            ptr, 
-            size: 0, 
-            capacity: aligned_capacity, 
-            is_aligned: true, 
-            alignment, 
+        Ok(Self {
+            ptr,
+            size: 0,
+            capacity: aligned_capacity,
+            is_aligned: true,
+            alignment,
         })
     }
 

@@ -1,5 +1,5 @@
 #[cfg(target_os = "linux")]
-use io_uring::{opcode, types, IoUring, Probe};
+use io_uring::{IoUring, Probe, opcode, types};
 use std::fs::File;
 #[cfg(unix)]
 use std::io;
@@ -36,15 +36,16 @@ impl DiskIO {
 
             if let Some(ref r) = ring {
                 let mut probe = Probe::new();
-                if r.submitter().register_probe(&mut probe).is_ok() 
+                if r.submitter().register_probe(&mut probe).is_ok()
                     && probe.is_supported(opcode::Read::CODE)
                     && probe.is_supported(opcode::Write::CODE)
                 {
-                    return Ok(Self { 
-                        ring, 
-                        _file: file.clone(), 
-                        fd, 
-                        _use_direct_io: use_direct_io });
+                    return Ok(Self {
+                        ring,
+                        _file: file.clone(),
+                        fd,
+                        _use_direct_io: use_direct_io,
+                    });
                 }
             }
 
@@ -86,7 +87,11 @@ impl DiskIO {
                 buffer.set_len(size);
 
                 unsafe {
-                    self.do_pread(buffer.as_mut_ptr() as *mut libc::c_void, size, offset as libc::off_t)?;
+                    self.do_pread(
+                        buffer.as_mut_ptr() as *mut libc::c_void,
+                        size,
+                        offset as libc::off_t,
+                    )?;
                 }
 
                 Ok(buffer.as_slice().to_vec())
@@ -94,7 +99,11 @@ impl DiskIO {
                 let mut buffer = vec![0u8; size];
 
                 unsafe {
-                    self.do_pread(buffer.as_mut_ptr() as *mut libc::c_void, size, offset as libc::off_t)?;
+                    self.do_pread(
+                        buffer.as_mut_ptr() as *mut libc::c_void,
+                        size,
+                        offset as libc::off_t,
+                    )?;
                 }
 
                 Ok(buffer)
@@ -117,11 +126,7 @@ impl DiskIO {
             {
                 use std::io::{Read, Seek, SeekFrom};
 
-                let mut file = self
-                    ._file
-                    .as_ref()
-                    .try_clone()
-                    .map_err(DbError::IoError)?;
+                let mut file = self._file.as_ref().try_clone().map_err(DbError::IoError)?;
 
                 file.seek(SeekFrom::Start(offset))
                     .map_err(DbError::IoError)?;
@@ -144,11 +149,21 @@ impl DiskIO {
                 aligned_buffer.as_mut_slice().copy_from_slice(data);
 
                 unsafe {
-                    libc::pwrite(self.fd, aligned_buffer.as_ptr() as *const libc::c_void, aligned_buffer.len(), offset as libc::off_t)
+                    libc::pwrite(
+                        self.fd,
+                        aligned_buffer.as_ptr() as *const libc::c_void,
+                        aligned_buffer.len(),
+                        offset as libc::off_t,
+                    )
                 }
             } else {
                 unsafe {
-                    libc::pwrite(self.fd, data.as_ptr() as *const libc::c_void, data.len(), offset as libc::off_t)
+                    libc::pwrite(
+                        self.fd,
+                        data.as_ptr() as *const libc::c_void,
+                        data.len(),
+                        offset as libc::off_t,
+                    )
                 }
             };
 
@@ -178,11 +193,7 @@ impl DiskIO {
             {
                 use std::io::{Seek, SeekFrom, Write};
 
-                let mut file = self
-                    ._file
-                    .as_ref()
-                    .try_clone()
-                    .map_err(DbError::IoError)?;
+                let mut file = self._file.as_ref().try_clone().map_err(DbError::IoError)?;
 
                 file.seek(SeekFrom::Start(offset))
                     .map_err(DbError::IoError)?;
@@ -217,12 +228,17 @@ impl DiskIO {
                         let offset = sector * BLOCK_SIZE as u64;
                         let buffer = &aligned_buffer[i];
 
-                        let write_e = opcode::Write::new(types::Fd(self.fd), buffer.as_ptr(), buffer.len() as u32)
-                            .offset(offset)
-                            .build()
-                            .user_data(i as u64);
+                        let write_e = opcode::Write::new(
+                            types::Fd(self.fd),
+                            buffer.as_ptr(),
+                            buffer.len() as u32,
+                        )
+                        .offset(offset)
+                        .build()
+                        .user_data(i as u64);
 
-                        sq.push(&write_e).map_err(|_| DbError::IoError(io::Error::other("SQ full")))?;
+                        sq.push(&write_e)
+                            .map_err(|_| DbError::IoError(io::Error::other("SQ full")))?;
                     }
                 }
 
@@ -233,7 +249,9 @@ impl DiskIO {
                 let mut completed = 0;
                 for cqe in ring.completion() {
                     if cqe.result() < 0 {
-                        return Err(DbError::IoError(io::Error::from_raw_os_error(-cqe.result())));
+                        return Err(DbError::IoError(io::Error::from_raw_os_error(
+                            -cqe.result(),
+                        )));
                     }
 
                     completed += 1;
@@ -299,7 +317,7 @@ impl DiskIO {
         {
             if let Some(ref mut ring) = self.ring {
                 if ring.submit_and_wait(0).is_ok() {
-                    while ring.completion().next().is_some() { }
+                    while ring.completion().next().is_some() {}
                 }
             }
             self.ring = None;
@@ -307,7 +325,12 @@ impl DiskIO {
     }
 
     #[cfg(unix)]
-    unsafe fn do_pread(&self, buf: *mut libc::c_void, size: usize, offset: libc::off_t) -> Result<()> {
+    unsafe fn do_pread(
+        &self,
+        buf: *mut libc::c_void,
+        size: usize,
+        offset: libc::off_t,
+    ) -> Result<()> {
         let ret = libc::pread(self.fd, buf, size, offset);
         if ret < 0 {
             return Err(DbError::IoError(io::Error::last_os_error()));
