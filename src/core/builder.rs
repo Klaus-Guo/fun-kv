@@ -1,6 +1,10 @@
 use std::time::Duration;
 
-use crate::{constants::*, core::ttl::TtlConfig};
+use crate::{
+    constants::*,
+    core::{FunKV, ttl::TtlConfig},
+    error::Result,
+};
 
 pub struct DbConfig {
     pub persistency: bool,
@@ -94,15 +98,13 @@ impl DbBuilder {
         self
     }
 
-    // TODO: parameterization a custom ttl_config
-
-    pub fn build(self) -> Option<()> {
+    pub fn build(self) -> Result<FunKV> {
         let persistency = !self.file_path.is_none();
 
         let config = DbConfig {
             persistency: persistency,
             max_memory: self.max_memory,
-            enable_caching: self.enable_caching.unwrap_or(!persistency),
+            enable_caching: self.enable_caching.unwrap_or(persistency),
             hash_bits: self.hash_bits,
             enable_ttl: self.enable_ttl,
             ttl_config: self.ttl_config,
@@ -110,8 +112,7 @@ impl DbBuilder {
             file_size: self.file_size,
         };
 
-        // TODO: FunKV::build_with_config(config)
-        None
+        FunKV::build_with_config(config)
     }
 }
 
