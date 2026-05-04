@@ -1,6 +1,15 @@
-use std::{io::Bytes, mem, sync::{Arc, atomic::Ordering}, time::{Instant, SystemTime, UNIX_EPOCH}};
+use std::{
+    io::Bytes,
+    mem,
+    sync::{Arc, atomic::Ordering},
+    time::{Instant, SystemTime, UNIX_EPOCH},
+};
 
-use crate::{constants::*, core::record::Record, error::{DbError, Result}};
+use crate::{
+    constants::*,
+    core::record::Record,
+    error::{DbError, Result},
+};
 
 use super::FunKV;
 
@@ -9,24 +18,33 @@ impl FunKV {
         self.insert_with_timestamp(key, value, None)
     }
 
-    pub fn insert_with_timestamp(&self, key: &[u8], value: &[u8], timestamp: Option<u64>) -> Result<bool> {
+    pub fn insert_with_timestamp(
+        &self,
+        key: &[u8],
+        value: &[u8],
+        timestamp: Option<u64>,
+    ) -> Result<bool> {
         self.insert_with_timestamp_and_ttl_internal(key, value, timestamp, 0)
     }
 
     pub fn get(&self, key: &[u8]) -> Result<Vec<u8>> {
         let start = Instant::now();
         self.validate_key(key)?;
-        
+
         if self.enable_caching {
             if let Some(ref cache) = self.cache {
                 if let Some(value) = cache.get(key) {
-                    self.stats.record_get(start.elapsed().as_nanos() as u64, true);
+                    self.stats
+                        .record_get(start.elapsed().as_nanos() as u64, true);
                     return Ok(value.to_vec());
                 }
             }
         }
 
-        let record = self.hash_table.read_sync(key, |_, v| v.clone()).ok_or(DbError::KeyNotFound)?;
+        let record = self
+            .hash_table
+            .read_sync(key, |_, v| v.clone())
+            .ok_or(DbError::KeyNotFound)?;
 
         if self.enable_ttl {
             let ttl = record.ttl.load(Ordering::Relaxed);
@@ -56,12 +74,19 @@ impl FunKV {
             }
         }
 
-        self.stats.record_get(start.elapsed().as_nanos() as u64, cache_hit);
+        self.stats
+            .record_get(start.elapsed().as_nanos() as u64, cache_hit);
 
         Ok(value)
     }
 
-    pub(super) fn insert_with_timestamp_and_ttl_internal(&self, key: &[u8], value: &[u8], timestamp: Option<u64>, ttl: u64) -> Result<bool> {
+    pub(super) fn insert_with_timestamp_and_ttl_internal(
+        &self,
+        key: &[u8],
+        value: &[u8],
+        timestamp: Option<u64>,
+        ttl: u64,
+    ) -> Result<bool> {
         let start = Instant::now();
         let timestamp = match timestamp {
             Some(0) | None => self.get_timestamp(),
@@ -102,7 +127,8 @@ impl FunKV {
 
         let key_vec = record.key.clone();
 
-        self.hash_table.upsert_sync(key_vec.clone(), Arc::clone(&record));
+        self.hash_table
+            .upsert_sync(key_vec.clone(), Arc::clone(&record));
 
         self.tree.insert(key_vec, Arc::clone(&record));
 
@@ -110,7 +136,8 @@ impl FunKV {
         self.stats
             .memory_usage
             .fetch_add(record_size, Ordering::AcqRel);
-        self.stats.record_insert(start.elapsed().as_nanos() as u64, is_update);
+        self.stats
+            .record_insert(start.elapsed().as_nanos() as u64, is_update);
 
         if self.persistency {
             if let Some(ref write_buffer) = self.write_buffer {
@@ -123,32 +150,53 @@ impl FunKV {
         Ok(!is_update)
     }
 
-    pub(super) fn update_record_with_ttl(&self, old_record: &Record, value: &[u8], timestamp: u64, ttl: u64) -> Result<bool> {
+    pub(super) fn update_record_with_ttl(
+        &self,
+        old_record: &Record,
+        value: &[u8],
+        timestamp: u64,
+        ttl: u64,
+    ) -> Result<bool> {
         let new_record = if ttl > 0 && self.enable_ttl {
-            Arc::new(Record::new_with_ttl(old_record.key.clone(), value.to_vec(), timestamp, ttl))
+            Arc::new(Record::new_with_ttl(
+                old_record.key.clone(),
+                value.to_vec(),
+                timestamp,
+                ttl,
+            ))
         } else {
-            Arc::new(Record::new(old_record.key.clone(), value.to_vec(), timestamp))
+            Arc::new(Record::new(
+                old_record.key.clone(),
+                value.to_vec(),
+                timestamp,
+            ))
         };
 
         let old_value_len = old_record.value_len;
         let old_size = old_record.calculate_size();
         let new_size = Self::calculate_record_size(old_record.key.len(), value.len());
 
-        let old_record_arc = if let Some(entry) = self.hash_table.read_sync(&old_record.key, |_, v| v.clone()) {
-            entry
-        } else {
-            return Err(DbError::KeyNotFound);
-        };
+        let old_record_arc =
+            if let Some(entry) = self.hash_table.read_sync(&old_record.key, |_, v| v.clone()) {
+                entry
+            } else {
+                return Err(DbError::KeyNotFound);
+            };
 
         let key_vec = new_record.key.clone();
 
-        self.hash_table.upsert_sync(key_vec.clone(), Arc::clone(&new_record));
+        self.hash_table
+            .upsert_sync(key_vec.clone(), Arc::clone(&new_record));
         self.tree.insert(key_vec.clone(), Arc::clone(&new_record));
 
         if new_size > old_size {
-            self.stats.memory_usage.fetch_add(new_size - old_size, Ordering::AcqRel);
+            self.stats
+                .memory_usage
+                .fetch_add(new_size - old_size, Ordering::AcqRel);
         } else {
-            self.stats.memory_usage.fetch_sub(old_size - new_size, Ordering::AcqRel);
+            self.stats
+                .memory_usage
+                .fetch_sub(old_size - new_size, Ordering::AcqRel);
         }
 
         if self.persistency {
@@ -164,7 +212,9 @@ impl FunKV {
                     let _ = e;
                 }
 
-                if let Err(e) = write_buffer.add_write(Operation::Delete, old_record_arc, old_value_len) {
+                if let Err(e) =
+                    write_buffer.add_write(Operation::Delete, old_record_arc, old_value_len)
+                {
                     let _ = e;
                 }
             }
@@ -207,7 +257,7 @@ impl FunKV {
             Some(limit) => {
                 let current = self.stats.memory_usage.load(Ordering::Acquire);
                 current + size <= limit
-            },
+            }
             None => true,
         }
     }

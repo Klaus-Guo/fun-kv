@@ -17,12 +17,12 @@ use crate::{
 pub mod builder;
 pub mod cache;
 pub mod init;
-pub mod record;
-pub mod ttl;
-pub mod persistence;
-pub mod recovery;
-pub mod operations;
 pub mod internal;
+pub mod operations;
+pub mod persistence;
+pub mod record;
+pub mod recovery;
+pub mod ttl;
 
 pub struct FunKV {
     pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,

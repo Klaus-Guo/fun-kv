@@ -3,7 +3,9 @@ use std::sync::Arc;
 use ahash::RandomState;
 use scc::HashMap;
 
-use crate::{DbBuilder, core::record::Record, stats::StatsSnapshot, storage::write_buffer::WriteBuffer};
+use crate::{
+    DbBuilder, core::record::Record, stats::StatsSnapshot, storage::write_buffer::WriteBuffer,
+};
 
 use super::FunKV;
 
@@ -42,7 +44,7 @@ impl FunKV {
 
     pub(crate) fn get_hash_table(&self) -> &HashMap<Vec<u8>, Arc<Record>, RandomState> {
         &self.hash_table
-    } 
+    }
 
     pub(crate) fn remove_from_tree(&self, key: &[u8]) {
         self.tree.remove(key);

@@ -1,6 +1,11 @@
 use std::sync::{Arc, atomic::Ordering};
 
-use crate::{constants::*, core::record::Record, error::{DbError, Result}, storage::{format::get_format, metadata::Metadata}};
+use crate::{
+    constants::*,
+    core::record::Record,
+    error::{DbError, Result},
+    storage::{format::get_format, metadata::Metadata},
+};
 
 use super::FunKV;
 
@@ -105,7 +110,8 @@ impl FunKV {
 
             let record_arc = Arc::new(record);
             let key_len = key.len();
-            self.hash_table.upsert_sync(key.clone(), Arc::clone(&record_arc));
+            self.hash_table
+                .upsert_sync(key.clone(), Arc::clone(&record_arc));
             self.tree.insert(key, Arc::clone(&record_arc));
 
             self.stats.record_count.fetch_add(1, Ordering::AcqRel);
@@ -145,7 +151,7 @@ impl FunKV {
                 .write()
                 .release_sectors(last_end, total_sectors - last_end)?;
         }
-        
+
         Ok(())
     }
 }

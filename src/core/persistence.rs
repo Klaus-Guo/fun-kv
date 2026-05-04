@@ -1,13 +1,23 @@
 #[cfg(unix)]
 use std::sync::Arc;
-use std::{cmp::min, fs::{File, OpenOptions}, io::{self, Read, Seek}, sync::atomic::Ordering};
+use std::{
+    cmp::min,
+    fs::{File, OpenOptions},
+    io::{self, Read, Seek},
+    sync::atomic::Ordering,
+};
 
 #[cfg(unix)]
 use parking_lot::RwLock;
 
 #[cfg(unix)]
 use crate::storage::io::DiskIO;
-use crate::{constants::*, core::record::Record, error::{DbError, Result}, storage::{format::get_format, metadata::Metadata}};
+use crate::{
+    constants::*,
+    core::record::Record,
+    error::{DbError, Result},
+    storage::{format::get_format, metadata::Metadata},
+};
 
 use super::FunKV;
 
@@ -48,7 +58,10 @@ impl FunKV {
             .disk_io
             .as_ref()
             .ok_or_else(|| {
-                DbError::IoError(io::Error::new(io::ErrorKind::NotFound,"No disk IO available"))
+                DbError::IoError(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    "No disk IO available",
+                ))
             })?
             .read();
 
@@ -62,7 +75,11 @@ impl FunKV {
         Ok(data[offset..offset + record.value_len].to_vec())
     }
 
-    pub(super) fn open_device(&mut self, file_path: &Option<String>, file_size: Option<u64>) -> Result<()> {
+    pub(super) fn open_device(
+        &mut self,
+        file_path: &Option<String>,
+        file_size: Option<u64>,
+    ) -> Result<()> {
         if let Some(path) = file_path {
             #[cfg(target_os = "linux")]
             use std::os::unix::fs::OpenOptionsExt;
@@ -72,11 +89,11 @@ impl FunKV {
             #[cfg(unix)]
             let (file, use_direct_io) = if Path::new("/.dockerenv").exists() {
                 let file = FunKV::regular_open(path)?;
-                (file, false)   // Don't use O_DIRECT in Docker
+                (file, false) // Don't use O_DIRECT in Docker
             } else {
                 #[cfg(target_os = "linux")]
                 {
-                    match OpenOptions::new() 
+                    match OpenOptions::new()
                         .read(true)
                         .write(true)
                         .create(true)
@@ -121,7 +138,8 @@ impl FunKV {
             } else {
                 let is_empty_file = {
                     let mut temp_file = file.try_clone().map_err(DbError::IoError)?;
-                    temp_file.metadata()
+                    temp_file
+                        .metadata()
                         .map(|m| {
                             if m.len() > 0 {
                                 let mut buffer = vec![0u8; min(READ_BUFFER_SIZE, m.len() as usize)];
@@ -138,19 +156,22 @@ impl FunKV {
                 if is_empty_file {
                     self.free_space.write().initialize(self.persistence_size)?;
                 } else {
-                    self.free_space.write().set_persistence_size(self.persistence_size);
+                    self.free_space
+                        .write()
+                        .set_persistence_size(self.persistence_size);
                 }
             }
 
             #[cfg(unix)]
             {
-                use std:: os::unix::io::AsRawFd;
-                
+                use std::os::unix::io::AsRawFd;
+
                 let file_arc = Arc::new(file);
                 let fd = file_arc.as_raw_fd();
                 self.file_fd = Some(fd);
 
-                self.persistence_file = Some(file_arc.as_ref().try_clone().map_err(DbError::IoError)?);
+                self.persistence_file =
+                    Some(file_arc.as_ref().try_clone().map_err(DbError::IoError)?);
                 self.disk_io = Some(Arc::new(RwLock::new(DiskIO::new(file_arc, use_direct_io)?)));
             }
 
@@ -172,17 +193,17 @@ impl FunKV {
                 }
             }
         }
-        
+
         Ok(())
     }
 
     fn regular_open(path: &String) -> Result<File> {
         OpenOptions::new()
-                .read(true)
-                .write(true)
-                .create(true)
-                .truncate(false)
-                .open(path)
-                .map_err(DbError::IoError)
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(path)
+            .map_err(DbError::IoError)
     }
 }
