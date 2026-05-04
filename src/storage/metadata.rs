@@ -75,7 +75,7 @@ impl Metadata {
         bytemuck::bytes_of(self)
     }
 
-    pub fn from_byte(bytes: &[u8]) -> Option<Self> {
+    pub fn from_bytes(bytes: &[u8]) -> Option<Self> {
         if bytes.len() < mem::size_of::<Self>() {
             return None;
         }

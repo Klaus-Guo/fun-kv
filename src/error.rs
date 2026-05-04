@@ -62,6 +62,9 @@ pub enum DbError {
 
     #[error("Channel error")]
     ChannelError,
+
+    #[error("No device configured")]
+    NoDevice,
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;
@@ -96,6 +99,7 @@ impl DbError {
             DbError::SystemError(e) => *e,
             DbError::SizeMismatch { .. } => EMSGSIZE,
             DbError::IoError(_) => EIO,
+            DbError::NoDevice => crate::constants::ENODEV,
             _ => EIO,
         }
     }

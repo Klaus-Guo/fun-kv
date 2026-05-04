@@ -389,7 +389,7 @@ fn process_write_batch(
 
     for (sector, key_len, value_len) in delete_operations {
         let mut deletion_marker = vec![0u8; BLOCK_SIZE];
-        deletion_marker[..8].copy_from_slice(b"\0DELETED");
+        deletion_marker[..8].copy_from_slice(DELETED_MARKER);
 
         let _ = disk_io.write().write_sectors_sync(sector, &deletion_marker);
 

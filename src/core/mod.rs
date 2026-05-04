@@ -21,6 +21,8 @@ pub mod init;
 pub mod record;
 pub mod ttl;
 pub mod persistence;
+pub mod recovery;
+pub mod operations;
 
 pub struct FunKV {
     pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,

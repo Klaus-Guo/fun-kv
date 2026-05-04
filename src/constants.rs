@@ -23,6 +23,7 @@ pub const SIGNATURE_SIZE: usize = 9;
 pub const RESERVED_SIZE: usize = 68;
 pub const METADATA_BLOCK_SIZE: u64 = 16;
 pub const METADATA_BLOCK: u64 = 0;
+pub const DATA_START_BLOCK: u64 = 16;
 
 pub const BLOCK_SIZE: usize = 4096;
 pub const SECTOR_HEADER_SIZE: usize = 4;
@@ -42,6 +43,7 @@ pub const EEXIST: i32 = 17;
 pub const EOVERFLOW: i32 = 75;
 pub const EMSGSIZE: i32 = 90;
 pub const EIO: i32 = 5;
+pub const ENODEV: i32 = 19;
 
 // Operation types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -66,4 +68,5 @@ pub const IOURING_MAX_BATCH: usize = 128;
 pub const WRITE_BUFFER_COUNT: usize = 1024;
 pub const WRITE_BUFFER_SIZE: usize = 16 * MB;
 pub const WRITE_BUFFER_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
+pub const DELETED_MARKER: &[u8; 8] = b"\0DELETED";
 pub const READ_BUFFER_SIZE: usize = 4 * KB;

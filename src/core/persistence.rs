@@ -132,7 +132,7 @@ impl FunKV {
             if !was_newly_created {
                 let disk_io = self.disk_io.as_ref().unwrap().read();
                 if let Ok(metadata_byte) = disk_io.read_metadata() {
-                    if let Some(loaded_metadata) = Metadata::from_byte(&metadata_byte) {
+                    if let Some(loaded_metadata) = Metadata::from_bytes(&metadata_byte) {
                         self.stats
                             .disk_usage
                             .store(loaded_metadata.total_size, Ordering::Relaxed);
