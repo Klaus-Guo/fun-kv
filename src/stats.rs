@@ -153,7 +153,7 @@ impl Statistics {
 
     pub fn snapshot(&self) -> StatsSnapshot {
         let total_ops = self.total_gets.load(Ordering::Relaxed)
-            + self.total_inserts.load(Ordering::Release)
+            + self.total_inserts.load(Ordering::Relaxed)
             + self.total_updates.load(Ordering::Relaxed)
             + self.total_deletes.load(Ordering::Relaxed);
 
