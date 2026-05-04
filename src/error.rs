@@ -65,6 +65,9 @@ pub enum DbError {
 
     #[error("No device configured")]
     NoDevice,
+
+    #[error("Invalid record")]
+    InvalidRecord,
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;

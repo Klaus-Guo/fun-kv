@@ -1,13 +1,13 @@
 #[cfg(unix)]
 use std::sync::Arc;
-use std::{cmp::min, fs::{File, OpenOptions}, io::{Read, Seek}, sync::atomic::Ordering};
+use std::{cmp::min, fs::{File, OpenOptions}, io::{self, Read, Seek}, sync::atomic::Ordering};
 
 #[cfg(unix)]
 use parking_lot::RwLock;
 
 #[cfg(unix)]
 use crate::storage::io::DiskIO;
-use crate::{constants::*, error::{DbError, Result}, storage::metadata::Metadata};
+use crate::{constants::*, core::record::Record, error::{DbError, Result}, storage::{format::get_format, metadata::Metadata}};
 
 use super::FunKV;
 
@@ -29,6 +29,37 @@ impl FunKV {
                 let _ = disk_io.write().flush();
             }
         }
+    }
+
+    pub(super) fn load_value_from_disk(&self, record: &Record) -> Result<Vec<u8>> {
+        let sector = record.sector.load(Ordering::Acquire);
+
+        if !self.persistency || sector == 0 {
+            return Err(DbError::InvalidRecord);
+        }
+
+        let metadata_version = self._metadata.read().version;
+        let format = get_format(metadata_version);
+
+        let total_size = format.total_size(record.key.len(), record.value_len);
+        let sectors_needed = total_size.div_ceil(BLOCK_SIZE);
+
+        let disk_io = self
+            .disk_io
+            .as_ref()
+            .ok_or_else(|| {
+                DbError::IoError(io::Error::new(io::ErrorKind::NotFound,"No disk IO available"))
+            })?
+            .read();
+
+        let data = disk_io.read_sectors_sync(sector, sectors_needed as u64)?;
+
+        let offset = format.record_header_size(record.key.len());
+        if offset + record.value_len > data.len() {
+            return Err(DbError::InvalidRecord);
+        }
+
+        Ok(data[offset..offset + record.value_len].to_vec())
     }
 
     pub(super) fn open_device(&mut self, file_path: &Option<String>, file_size: Option<u64>) -> Result<()> {

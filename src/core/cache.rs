@@ -6,7 +6,6 @@ use std::{
     },
 };
 
-use bytes::Bytes;
 use parking_lot::{Mutex, RwLock};
 
 use crate::{constants::*, stats::Statistics, utils::hash::murmur3_32};
@@ -28,7 +27,7 @@ pub struct Cache {
 #[derive(Clone)]
 struct CacheEntity {
     key: Vec<u8>,
-    value: Bytes,
+    value: Vec<u8>,
 
     reference_bit: Arc<AtomicBool>,
 
@@ -53,7 +52,7 @@ impl Cache {
         }
     }
 
-    pub fn get(&self, key: &[u8]) -> Option<Bytes> {
+    pub fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
         let bucket_idx = Self::get_bucket_idx(key);
 
         let bucket = self.buckets[bucket_idx].read();
@@ -69,7 +68,7 @@ impl Cache {
         None
     }
 
-    pub fn insert(&self, key: Vec<u8>, value: Bytes) {
+    pub fn insert(&self, key: Vec<u8>, value: Vec<u8>) {
         let size = key.len() + value.len() + mem::size_of::<CacheEntity>();
 
         // will not cache too large object

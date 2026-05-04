@@ -1,4 +1,4 @@
-use std::{mem, sync::{Arc, atomic::Ordering}, time::{Instant, SystemTime, UNIX_EPOCH}};
+use std::{io::Bytes, mem, sync::{Arc, atomic::Ordering}, time::{Instant, SystemTime, UNIX_EPOCH}};
 
 use crate::{constants::*, core::record::Record, error::{DbError, Result}};
 
@@ -11,6 +11,54 @@ impl FunKV {
 
     pub fn insert_with_timestamp(&self, key: &[u8], value: &[u8], timestamp: Option<u64>) -> Result<bool> {
         self.insert_with_timestamp_and_ttl_internal(key, value, timestamp, 0)
+    }
+
+    pub fn get(&self, key: &[u8]) -> Result<Vec<u8>> {
+        let start = Instant::now();
+        self.validate_key(key)?;
+        
+        if self.enable_caching {
+            if let Some(ref cache) = self.cache {
+                if let Some(value) = cache.get(key) {
+                    self.stats.record_get(start.elapsed().as_nanos() as u64, true);
+                    return Ok(value.to_vec());
+                }
+            }
+        }
+
+        let record = self.hash_table.read_sync(key, |_, v| v.clone()).ok_or(DbError::KeyNotFound)?;
+
+        if self.enable_ttl {
+            let ttl = record.ttl.load(Ordering::Relaxed);
+
+            if ttl > 0 {
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos() as u64;
+
+                if now > ttl {
+                    self.stats.ttl_expired_lazy.fetch_add(1, Ordering::Relaxed);
+                    return Err(DbError::KeyNotFound);
+                }
+            }
+        }
+
+        let (value, cache_hit) = if let Some(val) = record.get_value() {
+            (val, true)
+        } else {
+            (self.load_value_from_disk(&record)?, false)
+        };
+
+        if self.enable_caching {
+            if let Some(ref cache) = self.cache {
+                cache.insert(key.to_vec(), value.clone());
+            }
+        }
+
+        self.stats.record_get(start.elapsed().as_nanos() as u64, cache_hit);
+
+        Ok(value)
     }
 
     pub(super) fn insert_with_timestamp_and_ttl_internal(&self, key: &[u8], value: &[u8], timestamp: Option<u64>, ttl: u64) -> Result<bool> {
@@ -136,10 +184,16 @@ impl FunKV {
         mem::size_of::<Record>() + key_len + value_len
     }
 
-    pub(super) fn validate_key_value(&self, key: &[u8], value: &[u8]) -> Result<()> {
+    pub(super) fn validate_key(&self, key: &[u8]) -> Result<()> {
         if key.is_empty() || key.len() > MAX_KEY_SIZE {
             return Err(DbError::InvalidKeySize);
         }
+
+        Ok(())
+    }
+
+    pub(super) fn validate_key_value(&self, key: &[u8], value: &[u8]) -> Result<()> {
+        self.validate_key(key)?;
 
         if value.is_empty() || value.len() > MAX_VALUE_SIZE {
             return Err(DbError::InvalidValueSize);

@@ -1,9 +1,5 @@
-use std::{
-    mem,
-    sync::atomic::{self, AtomicU32, AtomicU64, Ordering},
-};
+use std::sync::atomic::{self, AtomicU32, AtomicU64, Ordering};
 
-use bytes::Bytes;
 use crossbeam_epoch::{Atomic, Guard, Shared};
 use parking_lot::RwLock;
 
@@ -13,7 +9,7 @@ use crate::core::FunKV;
 #[derive(Debug)]
 pub struct Record {
     pub key: Vec<u8>,
-    pub value: RwLock<Option<Bytes>>,
+    pub value: RwLock<Option<Vec<u8>>>,
 
     pub ttl: AtomicU64,
     pub timestamp: u64,
@@ -71,11 +67,10 @@ impl Record {
     pub fn new(key: Vec<u8>, value: Vec<u8>, timestamp: u64) -> Self {
         let key_len = key.len() as u16;
         let value_len = value.len();
-        let value_bytes = Bytes::from(value);
 
         Self {
             key,
-            value: parking_lot::RwLock::new(Some(value_bytes)),
+            value: parking_lot::RwLock::new(Some(value)),
             ttl: AtomicU64::new(0),
 
             timestamp,
@@ -102,7 +97,7 @@ impl Record {
     }
 
     #[inline]
-    pub fn get_value(&self) -> Option<Bytes> {
+    pub fn get_value(&self) -> Option<Vec<u8>> {
         self.value.read().clone()
     }
 

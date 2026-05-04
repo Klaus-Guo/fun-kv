@@ -1,7 +1,5 @@
 use std::sync::{Arc, atomic::Ordering};
 
-use bytes::Bytes;
-
 use crate::{constants::*, core::record::Record, error::{DbError, Result}, storage::{format::get_format, metadata::Metadata}};
 
 use super::FunKV;
