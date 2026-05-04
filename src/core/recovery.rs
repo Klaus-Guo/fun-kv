@@ -94,7 +94,7 @@ impl FunKV {
             let total_size = format.total_size(key.len(), value_len);
             let sectors_needed = total_size.div_ceil(BLOCK_SIZE);
 
-            let mut record = Record::new(key.clone(), Bytes::from(Vec::new()), timestamp);
+            let mut record = Record::new(key.clone(), Vec::new(), timestamp);
             record.sector.store(sector, Ordering::Release);
             record.value_len = value_len;
             record.ttl.store(ttl, Ordering::Release);
@@ -111,7 +111,7 @@ impl FunKV {
             self.tree.insert(key, Arc::clone(&record_arc));
 
             self.stats.record_count.fetch_add(1, Ordering::AcqRel);
-            let record_size = self.calculate_record_size(key_len, value_len);
+            let record_size = Self::calculate_record_size(key_len, value_len);
 
             self.stats
                 .memory_usage

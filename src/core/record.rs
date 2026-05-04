@@ -7,6 +7,8 @@ use bytes::Bytes;
 use crossbeam_epoch::{Atomic, Guard, Shared};
 use parking_lot::RwLock;
 
+use crate::core::FunKV;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct Record {
@@ -66,13 +68,14 @@ unsafe impl Send for Record {}
 unsafe impl Sync for Record {}
 
 impl Record {
-    pub fn new(key: Vec<u8>, value: Bytes, timestamp: u64) -> Self {
+    pub fn new(key: Vec<u8>, value: Vec<u8>, timestamp: u64) -> Self {
         let key_len = key.len() as u16;
         let value_len = value.len();
+        let value_bytes = Bytes::from(value);
 
         Self {
             key,
-            value: parking_lot::RwLock::new(Some(value)),
+            value: parking_lot::RwLock::new(Some(value_bytes)),
             ttl: AtomicU64::new(0),
 
             timestamp,
@@ -87,7 +90,7 @@ impl Record {
         }
     }
 
-    pub fn new_with_ttl(key: Vec<u8>, value: Bytes, timestamp: u64, ttl: u64) -> Self {
+    pub fn new_with_ttl(key: Vec<u8>, value: Vec<u8>, timestamp: u64, ttl: u64) -> Self {
         let record = Self::new(key, value, timestamp);
         record.ttl.store(ttl, Ordering::Release);
 
@@ -95,7 +98,7 @@ impl Record {
     }
 
     pub fn calculate_size(&self) -> usize {
-        mem::size_of::<Self>() + self.key.capacity() + self.value_len
+        FunKV::calculate_record_size(self.key.capacity(), self.value_len)
     }
 
     #[inline]
