@@ -44,7 +44,7 @@ impl FunKV {
         let stats = Arc::new(Statistics::new());
 
         let cache = if config.enable_caching {
-            Some(Arc::new(Cache::new(stats)))
+            Some(Arc::new(Cache::new(stats.clone())))
         } else {
             None
         };
