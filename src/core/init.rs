@@ -61,9 +61,9 @@ impl FunKV {
             max_memory: config.max_memory,
             cache,
             #[cfg(unix)]
-            device_fd: None,
-            device_size: 0,
-            device_file: None,
+            file_fd: None,
+            persistence_size: 0,
+            persistence_file: None,
             disk_io: None,
             enable_ttl: config.enable_ttl,
             ttl: Arc::new(RwLock::new(None)),

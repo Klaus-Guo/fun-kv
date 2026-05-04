@@ -20,6 +20,7 @@ pub mod cache;
 pub mod init;
 pub mod record;
 pub mod ttl;
+pub mod persistence;
 
 pub struct FunKV {
     pub(super) hash_table: HashMap<Vec<u8>, Arc<Record>, RandomState>,
@@ -40,9 +41,9 @@ pub struct FunKV {
 
     pub(super) cache: Option<Arc<Cache>>,
     #[cfg(unix)]
-    pub(super) device_fd: Option<i32>,
-    pub(super) device_size: u64,
-    pub(super) device_file: Option<File>,
+    pub(super) file_fd: Option<i32>,
+    pub(super) persistence_size: u64,
+    pub(super) persistence_file: Option<File>,
 
     pub(super) disk_io: Option<Arc<RwLock<DiskIO>>>,
 

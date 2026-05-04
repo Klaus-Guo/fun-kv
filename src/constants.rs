@@ -56,7 +56,7 @@ pub enum Operation {
 pub const MALLOC_LIMIT: usize = 8192;
 pub const LARGE_ALLOC_THRESHOLD: usize = 8192;
 
-pub const PAGE_SIZE: usize = 4096;
+pub const PAGE_SIZE: usize = 4 * KB;
 pub const PAGE_MASK: usize = PAGE_SIZE - 1;
 
 pub const IOURING_SQPOLL_IDLE_MS: u32 = 1000;
@@ -66,3 +66,4 @@ pub const IOURING_MAX_BATCH: usize = 128;
 pub const WRITE_BUFFER_COUNT: usize = 1024;
 pub const WRITE_BUFFER_SIZE: usize = 16 * MB;
 pub const WRITE_BUFFER_FLUSH_INTERVAL: Duration = Duration::from_millis(100);
+pub const READ_BUFFER_SIZE: usize = 4 * KB;
