@@ -17,6 +17,18 @@ impl FunKV {
         self.insert_with_timestamp(key, value, None)
     }
 
+    pub fn insert_with_ttl(&self, key: &[u8], value: &[u8], ttl_seconds: u64) -> Result<bool> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+        self.insert_with_timestamp_and_ttl_internal(
+            key, 
+            value, 
+            None, 
+            if ttl_seconds > 0 { ttl_seconds * SECOND } else { 0 }
+        )
+    }
+
     pub fn insert_with_timestamp(
         &self,
         key: &[u8],
@@ -175,11 +187,12 @@ impl FunKV {
         ttl: u64,
     ) -> Result<bool> {
         let start = Instant::now();
+        self.validate_key_value(key, value)?;
+
         let timestamp = match timestamp {
             Some(0) | None => self.get_timestamp(),
             Some(ts) => ts,
         };
-        self.validate_key_value(key, value)?;
 
         let is_update = self.hash_table.contains_sync(key);
         let existing_record = self.hash_table.read_sync(key, |_, v| v.clone());
