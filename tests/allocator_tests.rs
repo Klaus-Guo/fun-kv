@@ -1,7 +1,6 @@
 use std::ptr;
 
 use fun_kv::{constants::{ALIGNMENT, BLOCK_SIZE}, utils::allocator::AlignedBuffer};
-use rand::rand_core::block::BlockRng;
 
 #[test]
 fn test_aligned_buffer_creation() {
