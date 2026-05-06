@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     constants::*,
-    core::{record::{self, Record}, ttl::{TtlConfig, TtlSweeper}},
+    core::{record::Record, ttl::{TtlConfig, TtlSweeper}},
     error::{DbError, Result},
 };
 
