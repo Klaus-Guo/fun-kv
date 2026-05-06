@@ -17,6 +17,7 @@ pub struct Statistics {
     pub get_latency_ns: AtomicU64,
     pub insert_latency_ns: AtomicU64,
     pub delete_latency_ns: AtomicU64,
+    pub range_query_latency_ns: AtomicU64,
 
     pub cache_hits: AtomicU64,
     pub cache_misses: AtomicU64,
@@ -57,6 +58,7 @@ impl Statistics {
             get_latency_ns: AtomicU64::new(0),
             insert_latency_ns: AtomicU64::new(0),
             delete_latency_ns: AtomicU64::new(0),
+            range_query_latency_ns: AtomicU64::new(0),
             cache_hits: AtomicU64::new(0),
             cache_misses: AtomicU64::new(0),
             cache_evictions: AtomicU64::new(0),
@@ -102,12 +104,12 @@ impl Statistics {
 
     pub fn record_delete(&self, latency_ns: u64) {
         self.total_deletes.fetch_add(1, Ordering::Relaxed);
-        self.delete_latency_ns
-            .fetch_add(latency_ns, Ordering::Relaxed);
+        self.delete_latency_ns.fetch_add(latency_ns, Ordering::Relaxed);
     }
 
-    pub fn record_range_query(&self) {
+    pub fn record_range_query(&self, latency_ns: u64) {
         self.total_range_queries.fetch_add(1, Ordering::Relaxed);
+        self.range_query_latency_ns.fetch_add(latency_ns, Ordering::Relaxed);
     }
 
     pub fn record_eviction(&self, count: u64) {
@@ -185,6 +187,15 @@ impl Statistics {
             }
         };
 
+        let avg_range_query_latency = {
+            let range_queries = self.total_range_queries.load(Ordering::Relaxed);
+            if range_queries > 0 {
+                self.range_query_latency_ns.load(Ordering::Relaxed) / range_queries
+            } else {
+                0
+            }
+        };
+
         let cache_hit_rate = {
             let cache_hits = self.cache_hits.load(Ordering::Relaxed);
             let total_cache_ops = cache_hits + self.cache_misses.load(Ordering::Relaxed);
@@ -208,6 +219,7 @@ impl Statistics {
             avg_get_latency_ns: avg_get_latency,
             avg_insert_latency_ns: avg_insert_latency,
             avg_delete_latency_ns: avg_delete_latency,
+            avg_range_query_latency_ns: avg_range_query_latency,
             cache_hits: self.cache_hits.load(Ordering::Relaxed),
             cache_misses: self.cache_misses.load(Ordering::Relaxed),
             cache_hit_rate,
@@ -249,6 +261,7 @@ pub struct StatsSnapshot {
     pub avg_get_latency_ns: u64,
     pub avg_insert_latency_ns: u64,
     pub avg_delete_latency_ns: u64,
+    pub avg_range_query_latency_ns: u64,
 
     pub cache_hits: u64,
     pub cache_misses: u64,

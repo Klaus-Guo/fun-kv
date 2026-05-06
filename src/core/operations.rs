@@ -140,6 +140,33 @@ impl FunKV {
         Ok(record.value_len)
     }
 
+    pub fn range_query(&self, start_key: &[u8], end_key: &[u8], limit: usize) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+        let start = Instant::now();
+
+        self.validate_key(start_key)?;
+        self.validate_key(end_key)?;
+
+        let mut result = Vec::new();
+
+        for entry in self.tree.range(start_key.to_vec()..=end_key.to_vec()) {
+            if result.len() >= limit {
+                break;
+            }
+
+            let record = entry.value();
+            let value = if let Some(val) = record.get_value() {
+                val.to_vec()
+            } else {
+                self.load_value_from_disk(record)?
+            };
+
+            result.push((entry.key().clone(), value));
+        }
+
+        self.stats.record_range_query(start.elapsed().as_nanos() as u64);
+        Ok(result)
+    }
+
     pub(super) fn insert_with_timestamp_and_ttl_internal(
         &self,
         key: &[u8],
