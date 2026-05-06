@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     constants::*,
-    core::record::Record,
+    core::record::{self, Record},
     error::{DbError, Result},
 };
 
@@ -114,6 +114,27 @@ impl FunKV {
         }
 
         Ok(Some((ttl - now) / SECOND))
+    }
+
+    pub fn update_ttl(&self, key: &[u8], ttl_seconds: u64) -> Result<()> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+        self.validate_key(key)?;
+
+        let record = self
+            .hash_table
+            .read_sync(key, |_, v| v.clone())
+            .ok_or(DbError::KeyNotFound)?;
+
+        let new_expiry = if ttl_seconds > 0 {
+            self.get_timestamp() + (ttl_seconds * SECOND)
+        } else {
+            0
+        };
+
+        record.ttl.store(new_expiry, Ordering::Release);
+        Ok(())
     }
     
     pub fn delete(&self, key: &[u8]) -> Result<()> {
