@@ -27,6 +27,7 @@ pub const RESERVED_SIZE: usize = 68;
 pub const METADATA_BLOCK_SIZE: u64 = 16;
 pub const METADATA_BLOCK: u64 = 0;
 pub const DATA_START_BLOCK: u64 = 16;
+pub const ALIGNMENT: usize = 512;
 
 pub const BLOCK_SIZE: usize = 4096;
 pub const SECTOR_HEADER_SIZE: usize = 4;
