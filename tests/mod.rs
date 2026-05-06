@@ -6,3 +6,6 @@ pub mod storage;
 
 #[cfg(test)]
 pub mod utils;
+
+#[cfg(test)]
+pub mod stats_tests;
