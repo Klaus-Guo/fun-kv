@@ -1,5 +1,4 @@
 use std::{
-    io::Bytes,
     mem,
     sync::{Arc, atomic::Ordering},
     time::{Instant, SystemTime, UNIX_EPOCH},
@@ -141,7 +140,7 @@ impl FunKV {
 
         if self.persistency {
             if let Some(ref write_buffer) = self.write_buffer {
-                if let Err(e) = write_buffer.add_write(Operation::Insert, record, 0) {
+                if let Err(_e) = write_buffer.add_write(Operation::Insert, record, 0) {
                     // data is already inserted into memory
                 }
             }
