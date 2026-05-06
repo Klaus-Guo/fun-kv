@@ -91,6 +91,30 @@ impl FunKV {
         Ok(value)
     }
 
+    pub fn get_ttl(&self, key: &[u8]) -> Result<Option<u64>> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+        self.validate_key(key)?;
+
+        let record = self
+            .hash_table
+            .read_sync(key, |_, v| v.clone())
+            .ok_or(DbError::KeyNotFound)?;
+
+        let ttl = record.ttl.load(Ordering::Acquire);
+
+        if ttl == 0 {
+            return Ok(None);
+        }
+
+        let now = self.get_timestamp();
+        if now >= ttl {
+            return Ok(Some(0));
+        }
+
+        Ok(Some((ttl - now) / SECOND))
+    }
     
     pub fn delete(&self, key: &[u8]) -> Result<()> {
         self.delete_with_timestamp(key, None)
