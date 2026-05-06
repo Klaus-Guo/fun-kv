@@ -79,6 +79,56 @@ impl FunKV {
         Ok(value)
     }
 
+    
+    pub fn delete(&self, key: &[u8]) -> Result<()> {
+        self.delete_with_timestamp(key, None)
+    }
+
+    pub fn delete_with_timestamp(&self, key: &[u8], timestamp: Option<u64>) -> Result<()> {
+        self.validate_key(key)?;
+
+        let start = Instant::now();
+        let timestamp = match timestamp {
+            Some(0) | None => self.get_timestamp(),
+            Some(ts) => ts,
+        };
+
+        let record = self.hash_table.remove_sync(key).ok_or(DbError::KeyNotFound)?.1;
+
+        if timestamp < record.timestamp {
+            self.hash_table.upsert_sync(key.to_vec(), record);
+            return Err(DbError::OlderTimestamp);
+        }
+
+        let record_size = record.calculate_size();
+        let old_value_len = record.value_len;
+
+        record.refcount.store(0, Ordering::Release);
+
+        self.tree.remove(key);
+
+        self.stats.record_count.fetch_sub(1, Ordering::AcqRel);
+        self.stats.memory_usage.fetch_sub(record_size, Ordering::AcqRel);
+
+        if self.enable_caching {
+            if let Some(ref cache) = self.cache {
+                cache.remove(key);
+            }
+        }
+
+        if self.persistency {
+            if let Some(ref write_buffer) = self.write_buffer {
+                if let Err(_e) = write_buffer.add_write(Operation::Delete, record, old_value_len) {
+
+                }
+            }
+        }
+
+        self.stats.record_delete(start.elapsed().as_nanos() as u64);
+
+        Ok(())
+    }
+
     pub(super) fn insert_with_timestamp_and_ttl_internal(
         &self,
         key: &[u8],
