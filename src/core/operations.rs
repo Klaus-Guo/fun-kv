@@ -129,6 +129,17 @@ impl FunKV {
         Ok(())
     }
 
+    pub fn get_size(&self, key: &[u8]) -> Result<usize> {
+        self.validate_key(key)?;
+
+        let record = self
+            .hash_table
+            .read_sync(key, |_, v| v.clone())
+            .ok_or(DbError::KeyNotFound)?;
+
+        Ok(record.value_len)
+    }
+
     pub(super) fn insert_with_timestamp_and_ttl_internal(
         &self,
         key: &[u8],
