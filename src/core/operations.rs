@@ -85,9 +85,9 @@ impl FunKV {
     }
 
     pub fn delete_with_timestamp(&self, key: &[u8], timestamp: Option<u64>) -> Result<()> {
+        let start = Instant::now();
         self.validate_key(key)?;
 
-        let start = Instant::now();
         let timestamp = match timestamp {
             Some(0) | None => self.get_timestamp(),
             Some(ts) => ts,
