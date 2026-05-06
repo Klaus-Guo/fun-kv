@@ -1,4 +1,7 @@
-use std::{sync::{Arc, atomic::Ordering}, thread};
+use std::{
+    sync::{Arc, atomic::Ordering},
+    thread,
+};
 
 use fun_kv::stats::Statistics;
 
@@ -119,7 +122,9 @@ fn test_average_latencies() {
     stats.get_latency_ns.store(10000, Ordering::Relaxed);
 
     stats.total_range_queries.store(10, Ordering::Relaxed);
-    stats.range_query_latency_ns.store(100000, Ordering::Relaxed);
+    stats
+        .range_query_latency_ns
+        .store(100000, Ordering::Relaxed);
 
     stats.total_inserts.store(50, Ordering::Relaxed);
     stats.insert_latency_ns.store(15000, Ordering::Relaxed);
@@ -162,7 +167,10 @@ fn test_concurrent_statistics() {
     assert_eq!(stats.total_deletes.load(Ordering::Relaxed), 1000);
 
     assert_eq!(stats.get_latency_ns.load(Ordering::Relaxed), 1000 * 100);
-    assert_eq!(stats.range_query_latency_ns.load(Ordering::Relaxed), 1000 * 1000);
+    assert_eq!(
+        stats.range_query_latency_ns.load(Ordering::Relaxed),
+        1000 * 1000
+    );
     assert_eq!(stats.insert_latency_ns.load(Ordering::Relaxed), 1000 * 200);
     assert_eq!(stats.delete_latency_ns.load(Ordering::Relaxed), 1000 * 50);
 }

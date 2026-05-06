@@ -6,7 +6,10 @@ use std::{
 
 use crate::{
     constants::*,
-    core::{record::Record, ttl::{TtlConfig, TtlSweeper}},
+    core::{
+        record::Record,
+        ttl::{TtlConfig, TtlSweeper},
+    },
     error::{DbError, Result},
 };
 
@@ -22,10 +25,14 @@ impl FunKV {
             return Err(DbError::TtlNotEnabled);
         }
         self.insert_with_timestamp_and_ttl_internal(
-            key, 
-            value, 
-            None, 
-            if ttl_seconds > 0 { ttl_seconds * SECOND } else { 0 }
+            key,
+            value,
+            None,
+            if ttl_seconds > 0 {
+                ttl_seconds * SECOND
+            } else {
+                0
+            },
         )
     }
 
@@ -161,7 +168,7 @@ impl FunKV {
 
         Ok(())
     }
-    
+
     pub fn delete(&self, key: &[u8]) -> Result<()> {
         self.delete_with_timestamp(key, None)
     }
@@ -175,7 +182,11 @@ impl FunKV {
             Some(ts) => ts,
         };
 
-        let record = self.hash_table.remove_sync(key).ok_or(DbError::KeyNotFound)?.1;
+        let record = self
+            .hash_table
+            .remove_sync(key)
+            .ok_or(DbError::KeyNotFound)?
+            .1;
 
         if timestamp < record.timestamp {
             self.hash_table.upsert_sync(key.to_vec(), record);
@@ -190,7 +201,9 @@ impl FunKV {
         self.tree.remove(key);
 
         self.stats.record_count.fetch_sub(1, Ordering::AcqRel);
-        self.stats.memory_usage.fetch_sub(record_size, Ordering::AcqRel);
+        self.stats
+            .memory_usage
+            .fetch_sub(record_size, Ordering::AcqRel);
 
         if self.enable_caching {
             if let Some(ref cache) = self.cache {
@@ -200,9 +213,7 @@ impl FunKV {
 
         if self.persistency {
             if let Some(ref write_buffer) = self.write_buffer {
-                if let Err(_e) = write_buffer.add_write(Operation::Delete, record, old_value_len) {
-
-                }
+                if let Err(_e) = write_buffer.add_write(Operation::Delete, record, old_value_len) {}
             }
         }
 
@@ -222,7 +233,12 @@ impl FunKV {
         Ok(record.value_len)
     }
 
-    pub fn range_query(&self, start_key: &[u8], end_key: &[u8], limit: usize) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
+    pub fn range_query(
+        &self,
+        start_key: &[u8],
+        end_key: &[u8],
+        limit: usize,
+    ) -> Result<Vec<(Vec<u8>, Vec<u8>)>> {
         let start = Instant::now();
 
         self.validate_key(start_key)?;
@@ -245,7 +261,8 @@ impl FunKV {
             result.push((entry.key().clone(), value));
         }
 
-        self.stats.record_range_query(start.elapsed().as_nanos() as u64);
+        self.stats
+            .record_range_query(start.elapsed().as_nanos() as u64);
         Ok(result)
     }
 

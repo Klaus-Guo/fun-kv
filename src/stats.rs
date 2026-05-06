@@ -104,12 +104,14 @@ impl Statistics {
 
     pub fn record_delete(&self, latency_ns: u64) {
         self.total_deletes.fetch_add(1, Ordering::Relaxed);
-        self.delete_latency_ns.fetch_add(latency_ns, Ordering::Relaxed);
+        self.delete_latency_ns
+            .fetch_add(latency_ns, Ordering::Relaxed);
     }
 
     pub fn record_range_query(&self, latency_ns: u64) {
         self.total_range_queries.fetch_add(1, Ordering::Relaxed);
-        self.range_query_latency_ns.fetch_add(latency_ns, Ordering::Relaxed);
+        self.range_query_latency_ns
+            .fetch_add(latency_ns, Ordering::Relaxed);
     }
 
     pub fn record_eviction(&self, count: u64) {
