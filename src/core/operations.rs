@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     constants::*,
-    core::record::{self, Record},
+    core::{record::{self, Record}, ttl::{TtlConfig, TtlSweeper}},
     error::{DbError, Result},
 };
 
@@ -134,6 +134,31 @@ impl FunKV {
         };
 
         record.ttl_expiry.store(new_expiry, Ordering::Release);
+        Ok(())
+    }
+
+    pub fn persist(&self, key: &[u8]) -> Result<()> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+        self.update_ttl(key, 0)
+    }
+
+    pub fn start_ttl_sweeper(self: &Arc<Self>, config: Option<TtlConfig>) -> Result<()> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+
+        let ttl_config = config.unwrap_or(TtlConfig::default());
+
+        if ttl_config.enabled {
+            let weak_store = Arc::downgrade(self);
+            let mut sweeper = TtlSweeper::new(weak_store, ttl_config);
+            sweeper.start();
+
+            *self.ttl.write() = Some(sweeper);
+        }
+
         Ok(())
     }
     
