@@ -58,15 +58,15 @@ impl FunKV {
             .ok_or(DbError::KeyNotFound)?;
 
         if self.enable_ttl {
-            let ttl = record.ttl.load(Ordering::Relaxed);
+            let expiry = record.ttl_expiry.load(Ordering::Relaxed);
 
-            if ttl > 0 {
+            if expiry > 0 {
                 let now = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_nanos() as u64;
 
-                if now > ttl {
+                if now > expiry {
                     self.stats.ttl_expired_lazy.fetch_add(1, Ordering::Relaxed);
                     return Err(DbError::KeyNotFound);
                 }
@@ -102,18 +102,18 @@ impl FunKV {
             .read_sync(key, |_, v| v.clone())
             .ok_or(DbError::KeyNotFound)?;
 
-        let ttl = record.ttl.load(Ordering::Acquire);
+        let expiry = record.ttl_expiry.load(Ordering::Acquire);
 
-        if ttl == 0 {
+        if expiry == 0 {
             return Ok(None);
         }
 
         let now = self.get_timestamp();
-        if now >= ttl {
+        if now >= expiry {
             return Ok(Some(0));
         }
 
-        Ok(Some((ttl - now) / SECOND))
+        Ok(Some((expiry - now) / SECOND))
     }
 
     pub fn update_ttl(&self, key: &[u8], ttl_seconds: u64) -> Result<()> {
@@ -133,7 +133,7 @@ impl FunKV {
             0
         };
 
-        record.ttl.store(new_expiry, Ordering::Release);
+        record.ttl_expiry.store(new_expiry, Ordering::Release);
         Ok(())
     }
     

@@ -34,7 +34,7 @@ impl RecordFormat for DefaultFormat {
 
         data.extend_from_slice(&record.timestamp.to_le_bytes());
 
-        data.extend_from_slice(&record.ttl.load(Ordering::Acquire).to_le_bytes());
+        data.extend_from_slice(&record.ttl_expiry.load(Ordering::Acquire).to_le_bytes());
 
         if include_value {
             if let Some(value) = record.value.read().as_ref() {

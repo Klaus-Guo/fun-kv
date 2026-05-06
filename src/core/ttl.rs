@@ -198,9 +198,9 @@ fn sample_and_expire_batch(store: &Arc<FunKV>, config: &TtlConfig) -> (u64, u64)
         if let Some((key, record)) = get_random_ttl_entry(hash_table, &mut rng) {
             sampled += 1;
 
-            let ttl = record.ttl.load(Ordering::Relaxed);
+            let expiry = record.ttl_expiry.load(Ordering::Relaxed);
 
-            if ttl > 0 && ttl < now {
+            if expiry > 0 && expiry < now {
                 hash_table.remove_sync(&key);
                 store.remove_from_tree(&key);
 
@@ -231,7 +231,7 @@ fn get_random_ttl_entry(
         }
         count += 1;
 
-        if value.ttl.load(Ordering::Relaxed) > 0 {
+        if value.ttl_expiry.load(Ordering::Relaxed) > 0 {
             candidates.push((key.clone(), value.clone()));
         }
 

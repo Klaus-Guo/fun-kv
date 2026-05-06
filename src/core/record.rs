@@ -11,7 +11,7 @@ pub struct Record {
     pub key: Vec<u8>,
     pub value: RwLock<Option<Vec<u8>>>,
 
-    pub ttl: AtomicU64,
+    pub ttl_expiry: AtomicU64,
     pub timestamp: u64,
     pub value_len: usize,
     pub sector: AtomicU64,
@@ -71,7 +71,7 @@ impl Record {
         Self {
             key,
             value: parking_lot::RwLock::new(Some(value)),
-            ttl: AtomicU64::new(0),
+            ttl_expiry: AtomicU64::new(0),
 
             timestamp,
             value_len,
@@ -87,7 +87,7 @@ impl Record {
 
     pub fn new_with_ttl(key: Vec<u8>, value: Vec<u8>, timestamp: u64, ttl: u64) -> Self {
         let record = Self::new(key, value, timestamp);
-        record.ttl.store(ttl, Ordering::Release);
+        record.ttl_expiry.store(ttl, Ordering::Release);
 
         record
     }

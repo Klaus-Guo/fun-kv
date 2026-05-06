@@ -81,7 +81,7 @@ impl FunKV {
                 continue;
             }
 
-            let (key, value_len, timestamp, ttl) = match format.parse_record(&data) {
+            let (key, value_len, timestamp, expiry) = match format.parse_record(&data) {
                 Some(parsed) => parsed,
                 None => {
                     sector += 1;
@@ -100,10 +100,10 @@ impl FunKV {
             let mut record = Record::new(key.clone(), Vec::new(), timestamp);
             record.sector.store(sector, Ordering::Release);
             record.value_len = value_len;
-            record.ttl.store(ttl, Ordering::Release);
+            record.ttl_expiry.store(expiry, Ordering::Release);
             record.clear_value();
 
-            if self.enable_ttl && ttl > 0 && self.get_timestamp() > ttl {
+            if self.enable_ttl && expiry > 0 && self.get_timestamp() > expiry {
                 sector += sectors_needed as u64;
                 continue;
             }
