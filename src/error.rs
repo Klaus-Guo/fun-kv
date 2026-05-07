@@ -33,6 +33,12 @@ pub enum DbError {
     )]
     InvalidValueSize,
 
+    #[error("Invalid numeric value")]
+    InvalidNumericValue,
+
+    #[error("Invalid operation")]
+    InvalidOperation,
+
     #[error("Database is full")]
     DatabaseFull,
 

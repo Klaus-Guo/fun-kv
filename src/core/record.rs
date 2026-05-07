@@ -1,9 +1,9 @@
-use std::sync::atomic::{self, AtomicU32, AtomicU64, Ordering};
+use std::{mem, sync::atomic::{self, AtomicU32, AtomicU64, Ordering}};
 
 use crossbeam_epoch::{Atomic, Guard, Shared};
 use parking_lot::RwLock;
 
-use crate::core::FunKV;
+use crate::{constants::*, core::FunKV};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -58,6 +58,17 @@ impl AtomicLink {
         let ptr = record.unwrap_or(Shared::null());
         self.next.store(ptr, Ordering::Release);
     }
+
+    pub fn compare_exchange<'g>(
+        &self,
+        current: Shared<'g, Record>,
+        new: Shared<'g, Record>,
+        guard: &'g Guard,
+    ) -> Result<Shared<'g, Record>, Shared<'g, Record>> {
+        self.next
+            .compare_exchange(current, new, Ordering::AcqRel, Ordering::Acquire, guard)
+            .map_err(|e| e.current)
+    }
 }
 
 unsafe impl Send for Record {}
@@ -85,15 +96,27 @@ impl Record {
         }
     }
 
-    pub fn new_with_ttl(key: Vec<u8>, value: Vec<u8>, timestamp: u64, ttl: u64) -> Self {
+    pub fn new_with_ttl(key: Vec<u8>, value: Vec<u8>, timestamp: u64, ttl_expiry: u64) -> Self {
         let record = Self::new(key, value, timestamp);
-        record.ttl_expiry.store(ttl, Ordering::Release);
+        record.ttl_expiry.store(ttl_expiry, Ordering::Release);
 
         record
     }
 
     pub fn calculate_size(&self) -> usize {
         FunKV::calculate_record_size(self.key.capacity(), self.value_len)
+    }
+
+    pub fn calculate_disk_size(&self) -> usize {
+        let record_size = SECTOR_HEADER_SIZE +
+                         mem::size_of::<u16>() + // key_len
+                         self.key_len as usize +
+                         mem::size_of::<usize>() + // value_len
+                         mem::size_of::<u64>() + // timestamp
+                         self.value_len;
+
+        // Round up to block size
+        record_size.div_ceil(BLOCK_SIZE) * BLOCK_SIZE
     }
 
     #[inline]
