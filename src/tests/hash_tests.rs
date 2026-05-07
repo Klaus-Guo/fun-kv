@@ -1,4 +1,4 @@
-use fun_kv::utils::hash::murmur3_32;
+use crate::utils::hash::murmur3_32;
 
 #[test]
 fn test_murmur3_consistency() {

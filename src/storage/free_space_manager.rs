@@ -132,25 +132,25 @@ impl FreeSpaceManager {
 
         let mut prev = None;
 
-        if let Some((&s, stat)) = self.by_start.range(..start).rev().next() {
-            if s + stat.size == start {
-                prev = Some(stat.clone());
+        if let Some((&s, space)) = self.by_start.range(..start).rev().next() {
+            if s + space.size == start {
+                prev = Some(space.clone());
             }
         }
 
         let next = self.by_start.get(&end).cloned();
 
-        if let Some(prev_stat) = prev {
-            self.btree_remover(&prev_stat);
+        if let Some(prev_space) = prev {
+            self.btree_remover(&prev_space);
 
-            merged_start = prev_stat.start;
-            merged_size = prev_stat.size;
+            merged_start = prev_space.start;
+            merged_size += prev_space.size;
         }
 
-        if let Some(next_stat) = next {
-            self.btree_remover(&next_stat);
+        if let Some(next_space) = next {
+            self.btree_remover(&next_space);
 
-            merged_size += next_stat.size;
+            merged_size += next_space.size;
         }
 
         Ok(SectorStat {
@@ -159,30 +159,30 @@ impl FreeSpaceManager {
         })
     }
 
-    fn btree_remover(&mut self, stat: &SectorStat) {
-        self.by_size.remove(&(stat.size, stat.start));
-        self.by_start.remove(&stat.start);
+    fn btree_remover(&mut self, space: &SectorStat) {
+        self.by_size.remove(&(space.size, space.start));
+        self.by_start.remove(&space.start);
 
-        self.total_free -= stat.size * BLOCK_SIZE as u64;
+        self.total_free -= space.size * BLOCK_SIZE as u64;
     }
 
-    fn insert_free_space(&mut self, stat: SectorStat) -> Result<()> {
-        if stat.size == 0 {
+    fn insert_free_space(&mut self, space: SectorStat) -> Result<()> {
+        if space.size == 0 {
             return Err(DbError::InvalidArgument);
         }
 
-        if !self.is_valid_free_space(&stat) {
+        if !self.is_valid_free_space(&space) {
             return Err(DbError::InvalidArgument);
         }
 
-        if self.by_start.contains_key(&stat.start) {
+        if self.by_start.contains_key(&space.start) {
             return Err(DbError::DuplicateKey);
         }
 
-        self.total_free += stat.size * BLOCK_SIZE as u64;
+        self.total_free += space.size * BLOCK_SIZE as u64;
 
-        self.by_size.insert((stat.size, stat.start), stat.clone());
-        self.by_start.insert(stat.start, stat);
+        self.by_size.insert((space.size, space.start), space.clone());
+        self.by_start.insert(space.start, space);
 
         Ok(())
     }

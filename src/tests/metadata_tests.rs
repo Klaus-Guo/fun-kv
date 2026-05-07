@@ -1,4 +1,4 @@
-use fun_kv::{constants::*, storage::metadata::Metadata};
+use crate::{constants::*, storage::metadata::Metadata};
 
 
 #[test]

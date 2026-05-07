@@ -6,3 +6,6 @@ pub mod storage;
 pub mod utils;
 
 pub use core::builder::{DbBuilder, DbConfig};
+
+#[cfg(test)]
+mod tests;
