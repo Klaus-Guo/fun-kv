@@ -5,6 +5,9 @@ pub const MB: usize = 1024 * KB;
 pub const GB: usize = 1024 * MB;
 pub const TB: usize = 1024 * GB;
 
+pub const NANO_SECOND: u64 = 1;
+pub const SECOND: u64 = NANO_SECOND * 1_000_000_000;
+
 pub const MAX_KEY_SIZE: usize = 100 * KB;
 pub const MAX_VALUE_SIZE: usize = 4 * MB;
 pub const DEFAULT_MAX_MEMORY: usize = 4 * GB;

@@ -1,10 +1,20 @@
-use std::{sync::{Arc, Weak, atomic::{AtomicBool, AtomicU64, Ordering}}, thread::{self, JoinHandle}, time::{Duration, Instant, SystemTime, UNIX_EPOCH}};
+use std::{
+    sync::{
+        Arc, Weak,
+        atomic::{AtomicBool, AtomicU64, Ordering},
+    },
+    thread::{self, JoinHandle},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
 
 use ahash::RandomState;
 use rand::{RngExt, rngs::ThreadRng};
 use scc::HashMap;
 
-use crate::{constants::Operation, core::{FunKV, record::Record}};
+use crate::{
+    constants::Operation,
+    core::{FunKV, record::Record},
+};
 
 #[derive(Clone, Debug)]
 pub struct TtlConfig {
@@ -111,8 +121,12 @@ pub struct TtlSweeperSnapshot {
     pub last_run: u64,
 }
 
-
-fn run_sweeper_loop(store: Weak<FunKV>, config: TtlConfig, shutdown: Arc<AtomicBool>, stats: TtlSweeperStats) {
+fn run_sweeper_loop(
+    store: Weak<FunKV>,
+    config: TtlConfig,
+    shutdown: Arc<AtomicBool>,
+    stats: TtlSweeperStats,
+) {
     while !shutdown.load(Ordering::Acquire) {
         thread::sleep(config.interval);
 
@@ -150,15 +164,20 @@ fn run_sweeper_loop(store: Weak<FunKV>, config: TtlConfig, shutdown: Arc<AtomicB
         }
 
         if total_sampled > 0 {
-            stats.total_sampled.fetch_add(total_sampled, Ordering::Relaxed);
-            stats.total_expired.fetch_add(total_expired, Ordering::Relaxed);
+            stats
+                .total_sampled
+                .fetch_add(total_sampled, Ordering::Relaxed);
+            stats
+                .total_expired
+                .fetch_add(total_expired, Ordering::Relaxed);
             stats.total_runs.fetch_add(1, Ordering::Relaxed);
             stats.last_run.store(
                 SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap()
-                .as_nanos() as u64, 
-            Ordering::Relaxed);
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos() as u64,
+                Ordering::Relaxed,
+            );
         }
 
         if shutdown.load(Ordering::Acquire) {
@@ -178,10 +197,10 @@ fn sample_and_expire_batch(store: &Arc<FunKV>, config: &TtlConfig) -> (u64, u64)
     for _ in 0..config.sample_size {
         if let Some((key, record)) = get_random_ttl_entry(hash_table, &mut rng) {
             sampled += 1;
-            
-            let ttl = record.ttl.load(Ordering::Relaxed);
-            
-            if ttl > 0 && ttl < now {
+
+            let expiry = record.ttl_expiry.load(Ordering::Relaxed);
+
+            if expiry > 0 && expiry < now {
                 hash_table.remove_sync(&key);
                 store.remove_from_tree(&key);
 
@@ -199,7 +218,10 @@ fn sample_and_expire_batch(store: &Arc<FunKV>, config: &TtlConfig) -> (u64, u64)
     (sampled, expired)
 }
 
-fn get_random_ttl_entry(hash_table: &HashMap<Vec<u8>, Arc<Record>, RandomState>, rng: &mut ThreadRng) -> Option<(Vec<u8>, Arc<Record>)> {
+fn get_random_ttl_entry(
+    hash_table: &HashMap<Vec<u8>, Arc<Record>, RandomState>,
+    rng: &mut ThreadRng,
+) -> Option<(Vec<u8>, Arc<Record>)> {
     let mut candidates = Vec::new();
     let mut count = 0;
 
@@ -209,7 +231,7 @@ fn get_random_ttl_entry(hash_table: &HashMap<Vec<u8>, Arc<Record>, RandomState>,
         }
         count += 1;
 
-        if value.ttl.load(Ordering::Relaxed) > 0 {
+        if value.ttl_expiry.load(Ordering::Relaxed) > 0 {
             candidates.push((key.clone(), value.clone()));
         }
 

@@ -1,6 +1,11 @@
 use std::sync::{Arc, atomic::Ordering};
 
-use crate::{constants::*, core::record::Record, error::{DbError, Result}, storage::{format::get_format, metadata::Metadata}};
+use crate::{
+    constants::*,
+    core::record::Record,
+    error::{DbError, Result},
+    storage::{format::get_format, metadata::Metadata},
+};
 
 use super::FunKV;
 
@@ -76,7 +81,7 @@ impl FunKV {
                 continue;
             }
 
-            let (key, value_len, timestamp, ttl) = match format.parse_record(&data) {
+            let (key, value_len, timestamp, expiry) = match format.parse_record(&data) {
                 Some(parsed) => parsed,
                 None => {
                     sector += 1;
@@ -95,17 +100,18 @@ impl FunKV {
             let mut record = Record::new(key.clone(), Vec::new(), timestamp);
             record.sector.store(sector, Ordering::Release);
             record.value_len = value_len;
-            record.ttl.store(ttl, Ordering::Release);
+            record.ttl_expiry.store(expiry, Ordering::Release);
             record.clear_value();
 
-            if self.enable_ttl && ttl > 0 && self.get_timestamp() > ttl {
+            if self.enable_ttl && expiry > 0 && self.get_timestamp() > expiry {
                 sector += sectors_needed as u64;
                 continue;
             }
 
             let record_arc = Arc::new(record);
             let key_len = key.len();
-            self.hash_table.upsert_sync(key.clone(), Arc::clone(&record_arc));
+            self.hash_table
+                .upsert_sync(key.clone(), Arc::clone(&record_arc));
             self.tree.insert(key, Arc::clone(&record_arc));
 
             self.stats.record_count.fetch_add(1, Ordering::AcqRel);
@@ -145,7 +151,7 @@ impl FunKV {
                 .write()
                 .release_sectors(last_end, total_sectors - last_end)?;
         }
-        
+
         Ok(())
     }
 }

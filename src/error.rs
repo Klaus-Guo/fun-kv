@@ -68,6 +68,9 @@ pub enum DbError {
 
     #[error("Invalid record")]
     InvalidRecord,
+
+    #[error("TTL feature is not enabled")]
+    TtlNotEnabled,
 }
 
 pub type Result<T> = std::result::Result<T, DbError>;
