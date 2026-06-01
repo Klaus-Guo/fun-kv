@@ -30,3 +30,6 @@ pub mod ttl_tests;
 
 #[cfg(test)]
 pub mod persistence_tests;
+
+#[cfg(test)]
+pub mod builder_tests;
