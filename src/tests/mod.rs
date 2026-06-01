@@ -33,3 +33,6 @@ pub mod persistence_tests;
 
 #[cfg(test)]
 pub mod builder_tests;
+
+#[cfg(test)]
+pub mod concurrency_tests;
