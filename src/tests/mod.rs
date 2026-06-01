@@ -36,3 +36,6 @@ pub mod builder_tests;
 
 #[cfg(test)]
 pub mod concurrency_tests;
+
+#[cfg(test)]
+pub mod edge_cases_tests;

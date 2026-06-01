@@ -73,3 +73,30 @@ fn test_concurrent_mixed_operations() {
         handle.join().unwrap();
     }
 }
+
+#[test]
+fn test_concurrent_atomic_increments() {
+    let db = Arc::new(FunKV::new(None).unwrap());
+
+    let key = b"shared_counter";
+    let value: i64 = 0;
+    db.insert(key, &value.to_le_bytes()).unwrap();
+
+    let mut handles = vec![];
+
+    for _ in 0..10 {
+        let db_clone = Arc::clone(&db);
+        handles.push(thread::spawn(move || {
+            for _ in 0..100 {
+                db_clone.atomic_increment(key, 1).unwrap();
+            }
+        }));
+    }
+
+    for handle in handles {
+        handle.join().unwrap();
+    }
+
+    let result = db.atomic_increment(key, 0).unwrap();
+    assert_eq!(result, 1000);
+}

@@ -19,7 +19,7 @@ use super::FunKV;
 
 impl FunKV {
     pub fn insert(&self, key: &[u8], value: &[u8]) -> Result<bool> {
-        self.insert_with_timestamp_and_ttl_internal(key, value, self.get_timestamp(), 0)
+        self.insert_with_timestamp(key, value, None)
     }
 
     pub fn insert_with_timestamp(
@@ -28,12 +28,7 @@ impl FunKV {
         value: &[u8],
         timestamp: Option<u64>,
     ) -> Result<bool> {
-        let timestamp_val = match timestamp {
-            Some(0) | None => self.get_timestamp(),
-            Some(ts) => ts,
-        };
-
-        self.insert_with_timestamp_and_ttl_internal(key, value, timestamp_val, 0)
+        self.insert_with_timestamp_and_ttl_internal(key, value, timestamp, 0)
     }
 
     pub fn insert_with_ttl(&self, key: &[u8], value: &[u8], ttl_seconds: u64) -> Result<bool> {
@@ -50,7 +45,6 @@ impl FunKV {
         if !self.enable_ttl {
             return Err(DbError::TtlNotEnabled);
         }
-
         let timestamp_val = match timestamp {
             Some(0) | None => self.get_timestamp(),
             Some(ts) => ts,
@@ -65,7 +59,7 @@ impl FunKV {
         self.insert_with_timestamp_and_ttl_internal(
             key, 
             value, 
-            timestamp_val, 
+            Some(timestamp_val), 
             ttl_expiry,
         )
     }
@@ -292,19 +286,19 @@ impl FunKV {
     }
 
     pub fn atomic_increment(&self, key: &[u8], delta: i64) -> Result<i64> {
-        self.atomic_increment_with_timestamp_and_ttl_internal(key, delta, self.get_timestamp(), 0)
+        self.atomic_increment_with_timestamp_and_ttl_internal(key, delta, None, 0)
     }
 
     pub fn atomic_increment_with_timestamp(&self, key: &[u8], delta: i64, timestamp: Option<u64>) -> Result<i64> {
-        let timestamp_val = match timestamp {
-            Some(0) | None => self.get_timestamp(),
-            Some(ts) => ts,
-        };
 
-        self.atomic_increment_with_timestamp_and_ttl_internal(key, delta, timestamp_val, 0)
+        self.atomic_increment_with_timestamp_and_ttl_internal(key, delta, timestamp, 0)
     }
 
     pub fn atomic_increment_with_ttl(&self, key: &[u8], delta: i64, ttl_seconds: u64) -> Result<i64> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+
         self.atomic_increment_with_timestamp_and_ttl(key, delta, None, ttl_seconds)
     }
 
@@ -313,22 +307,11 @@ impl FunKV {
             return Err(DbError::TtlNotEnabled);
         }
 
-        let timestamp_val = match timestamp {
-            Some(0) | None => self.get_timestamp(),
-            Some(ts) => ts,
-        };
-
-        let ttl_expiry = if ttl_seconds > 0 {
-            timestamp_val + (ttl_seconds * SECOND)
-        } else {
-            0
-        };
-
         self.atomic_increment_with_timestamp_and_ttl_internal(
             key,
             delta,
-            timestamp_val,
-            ttl_expiry,
+            timestamp,
+            ttl_seconds,
         )
     }
 
@@ -336,7 +319,7 @@ impl FunKV {
         &self,
         key: &[u8],
         value: &[u8],
-        timestamp: u64,
+        timestamp: Option<u64>,
         ttl_expiry: u64,
     ) -> Result<bool> {
         let start = Instant::now();
@@ -345,15 +328,20 @@ impl FunKV {
         let is_update = self.hash_table.contains_sync(key);
         let existing_record = self.hash_table.read_sync(key, |_, v| v.clone());
 
+        let timestamp_val = match timestamp {
+            Some(0) | None => self.get_timestamp(),
+            Some(ts) => ts,
+        };
+
         if let Some(existing_record) = existing_record {
             let existing_ts = existing_record.timestamp;
             let existing_clone = existing_record;
 
-            if timestamp < existing_ts {
+            if timestamp_val < existing_ts {
                 return Err(DbError::OlderTimestamp);
             }
 
-            return self.update_record_with_ttl(&existing_clone, value, timestamp, ttl_expiry);
+            return self.update_record_with_ttl(&existing_clone, value, timestamp_val, ttl_expiry);
         }
 
         let record_size = Self::calculate_record_size(key.len(), value.len());
@@ -369,8 +357,15 @@ impl FunKV {
         Ok(!is_update)
     }
 
-    fn insert_into_memory_and_disk(&self, key: Vec<u8>, value: Vec<u8>, timestamp: u64, ttl_expiry: u64, record_size: usize) {
-        let record = if ttl_expiry > 0 && self.enable_ttl {
+    fn insert_into_memory_and_disk(&self, key: Vec<u8>, value: Vec<u8>, timestamp: Option<u64>, ttl_seconds: u64, record_size: usize) {
+
+        let timestamp = match timestamp {
+            Some(0) | None => self.get_timestamp(),
+            Some(ts) => ts,
+        };
+
+        let record = if ttl_seconds > 0 && self.enable_ttl {
+            let ttl_expiry = timestamp + (ttl_seconds * SECOND);
             self.stats.keys_with_ttl.fetch_add(1, Ordering::Relaxed);
             Arc::new(Record::new_with_ttl(
                 key,
@@ -451,7 +446,7 @@ impl FunKV {
         Ok(false)
     }
 
-    fn atomic_increment_with_timestamp_and_ttl_internal(&self, key: &[u8], delta: i64, timestamp: u64, ttl_expiry: u64) -> Result<i64> {
+    fn atomic_increment_with_timestamp_and_ttl_internal(&self, key: &[u8], delta: i64, timestamp: Option<u64>, ttl_seconds: u64) -> Result<i64> {
         self.validate_key(key)?;
 
         let key_vec = key.to_vec();
@@ -459,6 +454,11 @@ impl FunKV {
         let result = match self.hash_table.entry_sync(key_vec.clone()) {
             hash_map::Entry::Occupied(mut entry) => {
                 let old_record = entry.get();
+
+                let timestamp = match timestamp {
+                    Some(0) | None => self.get_timestamp(),
+                    Some(ts) => ts,
+                };
 
                 if timestamp < old_record.timestamp {
                     return Err(DbError::OlderTimestamp);
@@ -483,7 +483,8 @@ impl FunKV {
                 let new_val = current_val.saturating_add(delta);
                 let new_bytes = new_val.to_le_bytes().to_vec();
 
-                let new_record = if ttl_expiry > 0 {
+                let new_record = if ttl_seconds > 0 {
+                    let ttl_expiry = timestamp + (ttl_seconds * SECOND);
                     Arc::new(Record::new_with_ttl(old_record.key.clone(), new_bytes, timestamp, ttl_expiry))
                 } else {
                     Arc::new(Record::new(old_record.key.clone(), new_bytes, timestamp))
@@ -510,7 +511,7 @@ impl FunKV {
                 let value_bytes = delta.to_le_bytes().to_vec();
                 let record_size = Self::calculate_record_size(key.len(), 8);
 
-                self.insert_into_memory_and_disk(key_vec.clone(), value_bytes, timestamp, ttl_expiry, record_size);
+                self.insert_into_memory_and_disk(key_vec.clone(), value_bytes, timestamp, ttl_seconds, record_size);
 
                 Ok(delta)
             }
