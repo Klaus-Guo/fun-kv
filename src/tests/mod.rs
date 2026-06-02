@@ -39,3 +39,6 @@ pub mod concurrency_tests;
 
 #[cfg(test)]
 pub mod edge_cases_tests;
+
+#[cfg(test)]
+pub mod atomic_tests;

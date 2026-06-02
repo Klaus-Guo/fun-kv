@@ -50,17 +50,11 @@ impl FunKV {
             Some(ts) => ts,
         };
 
-        let ttl_expiry = if ttl_seconds > 0 {
-            timestamp_val + (ttl_seconds * SECOND)
-        } else {
-            0
-        };
-
         self.insert_with_timestamp_and_ttl_internal(
             key, 
             value, 
             Some(timestamp_val), 
-            ttl_expiry,
+            ttl_seconds,
         )
     }
 
@@ -320,7 +314,7 @@ impl FunKV {
         key: &[u8],
         value: &[u8],
         timestamp: Option<u64>,
-        ttl_expiry: u64,
+        ttl_seconds: u64,
     ) -> Result<bool> {
         let start = Instant::now();
         self.validate_key_value(key, value)?;
@@ -335,12 +329,18 @@ impl FunKV {
 
         if let Some(existing_record) = existing_record {
             let existing_ts = existing_record.timestamp;
-            let existing_clone = existing_record;
 
             if timestamp_val < existing_ts {
                 return Err(DbError::OlderTimestamp);
             }
 
+            let ttl_expiry = if ttl_seconds > 0 && self.enable_ttl {
+                timestamp_val + (ttl_seconds * 1_000_000_000)
+            } else {
+                0
+            };
+
+            let existing_clone = existing_record;
             return self.update_record_with_ttl(&existing_clone, value, timestamp_val, ttl_expiry);
         }
 
@@ -349,53 +349,31 @@ impl FunKV {
             return Err(DbError::OutOfMemory);
         }
 
-        self.insert_into_memory_and_disk(key.to_vec(), value.to_vec(), timestamp, ttl_expiry, record_size);
-
-        self.stats
-            .record_insert(start.elapsed().as_nanos() as u64, is_update);
-
-        Ok(!is_update)
-    }
-
-    fn insert_into_memory_and_disk(&self, key: Vec<u8>, value: Vec<u8>, timestamp: Option<u64>, ttl_seconds: u64, record_size: usize) {
-
-        let timestamp = match timestamp {
-            Some(0) | None => self.get_timestamp(),
-            Some(ts) => ts,
-        };
-
         let record = if ttl_seconds > 0 && self.enable_ttl {
-            let ttl_expiry = timestamp + (ttl_seconds * SECOND);
+            let ttl_expiry = timestamp_val + (ttl_seconds * SECOND);
             self.stats.keys_with_ttl.fetch_add(1, Ordering::Relaxed);
-            Arc::new(Record::new_with_ttl(
-                key,
-                value,
-                timestamp,
-                ttl_expiry,
-            ))
+            Arc::new(Record::new_with_ttl(key.to_vec(), value.to_vec(), timestamp_val, ttl_expiry))
         } else {
-            Arc::new(Record::new(key, value, timestamp))
+            Arc::new(Record::new(key.to_vec(), value.to_vec(), timestamp_val))
         };
 
         let key_vec = record.key.clone();
-
-        self.hash_table
-            .upsert_sync(key_vec.clone(), Arc::clone(&record));
-
+        
+        self.hash_table.upsert_sync(key_vec.clone(), Arc::clone(&record));
         self.tree.insert(key_vec, Arc::clone(&record));
 
         self.stats.record_count.fetch_add(1, Ordering::AcqRel);
-        self.stats
-            .memory_usage
-            .fetch_add(record_size, Ordering::AcqRel);
+        self.stats.memory_usage.fetch_add(record_size, Ordering::AcqRel);
+        self.stats.record_insert(start.elapsed().as_nanos() as u64, is_update);
 
         if self.persistency {
-            if let Some(ref write_buffer) = self.write_buffer {
-                if let Err(_e) = write_buffer.add_write(Operation::Insert, record, 0) {
-                    // data is already inserted into memory
+            if let Some(ref wb) = self.write_buffer {
+                if let Err(_e) = wb.add_write(Operation::Insert, record, 0) {
                 }
             }
         }
+
+        Ok(!is_update)
     }
 
     fn update_record_with_ttl(
@@ -498,7 +476,7 @@ impl FunKV {
                 let old_record_arc = Arc::clone(old_record);
 
                 entry.insert(Arc::clone(&new_record));
-
+                
                 self.tree.insert(key_vec.clone(), Arc::clone(&new_record));
 
                 self.update_memory_usage(new_size, old_size);
@@ -509,11 +487,35 @@ impl FunKV {
 
                 Ok(new_val)
             }
-            hash_map::Entry::Vacant(_entry) => {
+            hash_map::Entry::Vacant(entry) => {
                 let value_bytes = delta.to_le_bytes().to_vec();
-                let record_size = Self::calculate_record_size(key.len(), 8);
 
-                self.insert_into_memory_and_disk(key_vec.clone(), value_bytes, timestamp, ttl_seconds, record_size);
+                let timestamp = match timestamp {
+                    Some(0) | None => self.get_timestamp(),
+                    Some(ts) => ts,
+                };
+
+                let new_record = if ttl_seconds > 0 {
+                    let ttl_expiry = timestamp + (ttl_seconds * SECOND);
+                    Arc::new(Record::new_with_ttl(key_vec.clone(), value_bytes, timestamp, ttl_expiry))
+                } else {
+                    Arc::new(Record::new(key_vec.clone(), value_bytes, timestamp))
+                };
+
+                let _ = entry.insert_entry(Arc::clone(&new_record));
+
+                self.tree.insert(key_vec.clone(), Arc::clone(&new_record));
+
+                self.stats.record_count.fetch_add(1, Ordering::AcqRel);
+                let record_size = Self::calculate_record_size(key.len(), 8);
+                self.stats.memory_usage.fetch_add(record_size, Ordering::AcqRel);
+
+                if self.persistency {
+                    if let Some(ref wb) = self.write_buffer {
+                        if let Err(_e) = wb.add_write(Operation::Insert, Arc::clone(&new_record), 0) {
+                        }
+                    }
+                }
 
                 Ok(delta)
             }
