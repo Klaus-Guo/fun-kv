@@ -48,3 +48,6 @@ pub mod memory_tests;
 
 #[cfg(test)]
 pub mod operation_tests;
+
+#[cfg(test)]
+pub mod timestamp_tests;
