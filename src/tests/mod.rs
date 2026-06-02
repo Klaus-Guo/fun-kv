@@ -42,3 +42,9 @@ pub mod edge_cases_tests;
 
 #[cfg(test)]
 pub mod atomic_tests;
+
+#[cfg(test)]
+pub mod memory_tests;
+
+#[cfg(test)]
+pub mod operation_tests;
