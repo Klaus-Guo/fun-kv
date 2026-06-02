@@ -455,6 +455,8 @@ impl FunKV {
             hash_map::Entry::Occupied(mut entry) => {
                 let old_record = entry.get();
 
+                // timestamp comparison may crash during heavy concurrency (maybe or maybe not)
+                // need more test under heavy concurrency (concurrency and performance)
                 let timestamp = match timestamp {
                     Some(0) | None => self.get_timestamp(),
                     Some(ts) => ts,
