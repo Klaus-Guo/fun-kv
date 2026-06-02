@@ -207,3 +207,39 @@ impl FunKV {
             .map_err(DbError::IoError)
     }
 }
+
+impl Drop for FunKV {
+    fn drop(&mut self) {
+        if let Some(mut ttl) = self.ttl.write().take() {
+            ttl.stop();
+        }
+
+        if let Some(ref wb) = self.write_buffer {
+            wb.initiate_shutdown();
+        }
+
+        if self.persistency {
+            if let Some(ref disk_io) = self.disk_io {
+                let mut metadata = self._metadata.write();
+                metadata.total_records = self.stats.record_count.load(Ordering::Relaxed) as u64;
+                metadata.total_size = self.stats.disk_usage.load(Ordering::Relaxed);
+                metadata.fragmentation = self.free_space.read().get_fragmentation_percent();
+                metadata.update();
+
+                let _ = disk_io.write().write_metadata(metadata.as_bytes());
+                let _ = disk_io.write().flush();
+            }
+        }
+
+        if let Some(wb_arc) = self.write_buffer.take() {
+            if let Ok(wb) = Arc::try_unwrap(wb_arc) {
+                let mut wb_mut = wb;
+                wb_mut.complete_shutdown();
+            }
+        }
+
+        if let Some(ref disk_io) = self.disk_io {
+            disk_io.write().shutdown();
+        }
+    }
+}

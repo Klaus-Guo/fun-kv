@@ -4,6 +4,8 @@ use std::{
     time::{Instant, SystemTime, UNIX_EPOCH},
 };
 
+use scc::hash_map;
+
 use crate::{
     constants::*,
     core::{
@@ -20,22 +22,6 @@ impl FunKV {
         self.insert_with_timestamp(key, value, None)
     }
 
-    pub fn insert_with_ttl(&self, key: &[u8], value: &[u8], ttl_seconds: u64) -> Result<bool> {
-        if !self.enable_ttl {
-            return Err(DbError::TtlNotEnabled);
-        }
-        self.insert_with_timestamp_and_ttl_internal(
-            key,
-            value,
-            None,
-            if ttl_seconds > 0 {
-                ttl_seconds * SECOND
-            } else {
-                0
-            },
-        )
-    }
-
     pub fn insert_with_timestamp(
         &self,
         key: &[u8],
@@ -43,6 +29,33 @@ impl FunKV {
         timestamp: Option<u64>,
     ) -> Result<bool> {
         self.insert_with_timestamp_and_ttl_internal(key, value, timestamp, 0)
+    }
+
+    pub fn insert_with_ttl(&self, key: &[u8], value: &[u8], ttl_seconds: u64) -> Result<bool> {
+        self.insert_with_ttl_and_timestamp(key, value, ttl_seconds, None)
+    }
+
+    pub fn insert_with_ttl_and_timestamp(
+        &self,
+        key: &[u8],
+        value: &[u8],
+        ttl_seconds: u64,
+        timestamp: Option<u64>,
+    ) -> Result<bool> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+        let timestamp_val = match timestamp {
+            Some(0) | None => self.get_timestamp(),
+            Some(ts) => ts,
+        };
+
+        self.insert_with_timestamp_and_ttl_internal(
+            key, 
+            value, 
+            Some(timestamp_val), 
+            ttl_seconds,
+        )
     }
 
     pub fn get(&self, key: &[u8]) -> Result<Vec<u8>> {
@@ -266,33 +279,69 @@ impl FunKV {
         Ok(result)
     }
 
-    pub(super) fn insert_with_timestamp_and_ttl_internal(
+    pub fn atomic_increment(&self, key: &[u8], delta: i64) -> Result<i64> {
+        self.atomic_increment_with_timestamp_and_ttl_internal(key, delta, None, 0)
+    }
+
+    pub fn atomic_increment_with_timestamp(&self, key: &[u8], delta: i64, timestamp: Option<u64>) -> Result<i64> {
+
+        self.atomic_increment_with_timestamp_and_ttl_internal(key, delta, timestamp, 0)
+    }
+
+    pub fn atomic_increment_with_ttl(&self, key: &[u8], delta: i64, ttl_seconds: u64) -> Result<i64> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+
+        self.atomic_increment_with_timestamp_and_ttl(key, delta, None, ttl_seconds)
+    }
+
+    pub fn atomic_increment_with_timestamp_and_ttl(&self, key: &[u8], delta: i64, timestamp: Option<u64>, ttl_seconds: u64) -> Result<i64> {
+        if !self.enable_ttl {
+            return Err(DbError::TtlNotEnabled);
+        }
+
+        self.atomic_increment_with_timestamp_and_ttl_internal(
+            key,
+            delta,
+            timestamp,
+            ttl_seconds,
+        )
+    }
+
+    fn insert_with_timestamp_and_ttl_internal(
         &self,
         key: &[u8],
         value: &[u8],
         timestamp: Option<u64>,
-        ttl: u64,
+        ttl_seconds: u64,
     ) -> Result<bool> {
         let start = Instant::now();
         self.validate_key_value(key, value)?;
 
-        let timestamp = match timestamp {
+        let is_update = self.hash_table.contains_sync(key);
+        let existing_record = self.hash_table.read_sync(key, |_, v| v.clone());
+
+        let timestamp_val = match timestamp {
             Some(0) | None => self.get_timestamp(),
             Some(ts) => ts,
         };
 
-        let is_update = self.hash_table.contains_sync(key);
-        let existing_record = self.hash_table.read_sync(key, |_, v| v.clone());
-
         if let Some(existing_record) = existing_record {
             let existing_ts = existing_record.timestamp;
-            let existing_clone = existing_record;
 
-            if timestamp < existing_ts {
+            if timestamp_val < existing_ts {
                 return Err(DbError::OlderTimestamp);
             }
 
-            return self.update_record_with_ttl(&existing_clone, value, timestamp, ttl);
+            let ttl_expiry = if ttl_seconds > 0 && self.enable_ttl {
+                timestamp_val + (ttl_seconds * 1_000_000_000)
+            } else {
+                0
+            };
+
+            let existing_clone = existing_record;
+            return self.update_record_with_ttl(&existing_clone, value, timestamp_val, ttl_expiry);
         }
 
         let record_size = Self::calculate_record_size(key.len(), value.len());
@@ -300,36 +349,26 @@ impl FunKV {
             return Err(DbError::OutOfMemory);
         }
 
-        let record = if ttl > 0 && self.enable_ttl {
+        let record = if ttl_seconds > 0 && self.enable_ttl {
+            let ttl_expiry = timestamp_val + (ttl_seconds * SECOND);
             self.stats.keys_with_ttl.fetch_add(1, Ordering::Relaxed);
-            Arc::new(Record::new_with_ttl(
-                key.to_vec(),
-                value.to_vec(),
-                timestamp,
-                ttl,
-            ))
+            Arc::new(Record::new_with_ttl(key.to_vec(), value.to_vec(), timestamp_val, ttl_expiry))
         } else {
-            Arc::new(Record::new(key.to_vec(), value.to_vec(), timestamp))
+            Arc::new(Record::new(key.to_vec(), value.to_vec(), timestamp_val))
         };
 
         let key_vec = record.key.clone();
-
-        self.hash_table
-            .upsert_sync(key_vec.clone(), Arc::clone(&record));
-
+        
+        self.hash_table.upsert_sync(key_vec.clone(), Arc::clone(&record));
         self.tree.insert(key_vec, Arc::clone(&record));
 
         self.stats.record_count.fetch_add(1, Ordering::AcqRel);
-        self.stats
-            .memory_usage
-            .fetch_add(record_size, Ordering::AcqRel);
-        self.stats
-            .record_insert(start.elapsed().as_nanos() as u64, is_update);
+        self.stats.memory_usage.fetch_add(record_size, Ordering::AcqRel);
+        self.stats.record_insert(start.elapsed().as_nanos() as u64, is_update);
 
         if self.persistency {
-            if let Some(ref write_buffer) = self.write_buffer {
-                if let Err(_e) = write_buffer.add_write(Operation::Insert, record, 0) {
-                    // data is already inserted into memory
+            if let Some(ref wb) = self.write_buffer {
+                if let Err(_e) = wb.add_write(Operation::Insert, record, 0) {
                 }
             }
         }
@@ -337,7 +376,7 @@ impl FunKV {
         Ok(!is_update)
     }
 
-    pub(super) fn update_record_with_ttl(
+    fn update_record_with_ttl(
         &self,
         old_record: &Record,
         value: &[u8],
@@ -376,6 +415,144 @@ impl FunKV {
             .upsert_sync(key_vec.clone(), Arc::clone(&new_record));
         self.tree.insert(key_vec.clone(), Arc::clone(&new_record));
 
+        self.update_memory_usage(new_size, old_size);
+
+        if self.persistency {
+            self.persistent_update(new_record, old_record_arc, key_vec, old_value_len);
+        }
+
+        Ok(false)
+    }
+
+    fn atomic_increment_with_timestamp_and_ttl_internal(&self, key: &[u8], delta: i64, timestamp: Option<u64>, ttl_seconds: u64) -> Result<i64> {
+        self.validate_key(key)?;
+
+        let key_vec = key.to_vec();
+
+        let result = match self.hash_table.entry_sync(key_vec.clone()) {
+            hash_map::Entry::Occupied(mut entry) => {
+                let old_record = entry.get();
+
+                // timestamp comparison may crash during heavy concurrency (maybe or maybe not)
+                // need more test under heavy concurrency (concurrency and performance)
+                let timestamp = match timestamp {
+                    Some(0) | None => self.get_timestamp(),
+                    Some(ts) => ts,
+                };
+
+                if timestamp < old_record.timestamp {
+                    return Err(DbError::OlderTimestamp);
+                }
+
+                let value = if let Some(val) = old_record.get_value() {
+                    val
+                } else {
+                    self.load_value_from_disk(old_record)?
+                };
+
+                let current_val = if value.len() == 8 {
+                    let bytes = value
+                        .get(..8)
+                        .and_then(|slice| slice.try_into().ok())
+                        .ok_or(DbError::InvalidNumericValue)?;
+                    i64::from_le_bytes(bytes)
+                } else {
+                    return Err(DbError::InvalidOperation)
+                };
+
+                let new_val = current_val.saturating_add(delta);
+                let new_bytes = new_val.to_le_bytes().to_vec();
+
+                let new_record = if ttl_seconds > 0 {
+                    let ttl_expiry = timestamp + (ttl_seconds * SECOND);
+                    Arc::new(Record::new_with_ttl(old_record.key.clone(), new_bytes, timestamp, ttl_expiry))
+                } else {
+                    Arc::new(Record::new(old_record.key.clone(), new_bytes, timestamp))
+                };
+
+                let old_value_len = old_record.value_len;
+                let old_size = old_record.calculate_size();
+                let new_size = Self::calculate_record_size(old_record.key_len as usize, 8);
+                let old_record_arc = Arc::clone(old_record);
+
+                entry.insert(Arc::clone(&new_record));
+                
+                self.tree.insert(key_vec.clone(), Arc::clone(&new_record));
+
+                self.update_memory_usage(new_size, old_size);
+
+                if self.persistency {
+                    self.persistent_update(new_record, old_record_arc, key_vec, old_value_len);
+                }
+
+                Ok(new_val)
+            }
+            hash_map::Entry::Vacant(entry) => {
+                let value_bytes = delta.to_le_bytes().to_vec();
+
+                let timestamp = match timestamp {
+                    Some(0) | None => self.get_timestamp(),
+                    Some(ts) => ts,
+                };
+
+                let new_record = if ttl_seconds > 0 {
+                    let ttl_expiry = timestamp + (ttl_seconds * SECOND);
+                    Arc::new(Record::new_with_ttl(key_vec.clone(), value_bytes, timestamp, ttl_expiry))
+                } else {
+                    Arc::new(Record::new(key_vec.clone(), value_bytes, timestamp))
+                };
+
+                let _ = entry.insert_entry(Arc::clone(&new_record));
+
+                self.tree.insert(key_vec.clone(), Arc::clone(&new_record));
+
+                self.stats.record_count.fetch_add(1, Ordering::AcqRel);
+                let record_size = Self::calculate_record_size(key.len(), 8);
+                self.stats.memory_usage.fetch_add(record_size, Ordering::AcqRel);
+
+                if self.persistency {
+                    if let Some(ref wb) = self.write_buffer {
+                        if let Err(_e) = wb.add_write(Operation::Insert, Arc::clone(&new_record), 0) {
+                        }
+                    }
+                }
+
+                Ok(delta)
+            }
+        };
+
+        result
+    }
+
+    fn validate_key(&self, key: &[u8]) -> Result<()> {
+        if key.is_empty() || key.len() > MAX_KEY_SIZE {
+            return Err(DbError::InvalidKeySize);
+        }
+
+        Ok(())
+    }
+
+    fn validate_key_value(&self, key: &[u8], value: &[u8]) -> Result<()> {
+        self.validate_key(key)?;
+
+        if value.is_empty() || value.len() > MAX_VALUE_SIZE {
+            return Err(DbError::InvalidValueSize);
+        }
+
+        Ok(())
+    }
+
+    fn check_memory_limit(&self, size: usize) -> bool {
+        match self.max_memory {
+            Some(limit) => {
+                let current = self.stats.memory_usage.load(Ordering::Acquire);
+                current + size <= limit
+            }
+            None => true,
+        }
+    }
+
+    fn update_memory_usage(&self, new_size: usize, old_size: usize) {
         if new_size > old_size {
             self.stats
                 .memory_usage
@@ -385,29 +562,30 @@ impl FunKV {
                 .memory_usage
                 .fetch_sub(old_size - new_size, Ordering::AcqRel);
         }
+    }
 
-        if self.persistency {
-            if self.enable_caching {
-                if let Some(ref cache) = self.cache {
-                    cache.remove(&key_vec);
-                }
-            }
-
-            if let Some(ref write_buffer) = self.write_buffer {
-                if let Err(e) = write_buffer.add_write(Operation::Update, new_record, old_value_len)
-                {
-                    let _ = e;
-                }
-
-                if let Err(e) =
-                    write_buffer.add_write(Operation::Delete, old_record_arc, old_value_len)
-                {
-                    let _ = e;
-                }
+    fn persistent_update(&self, new_record: Arc<Record>, old_record: Arc<Record>, key: Vec<u8>, value_len: usize) {
+        if self.enable_caching {
+            if let Some(ref cache) = self.cache {
+                cache.remove(&key);
             }
         }
 
-        Ok(false)
+        if let Some(ref wb) = self.write_buffer {
+            if let Err(e) =
+                wb.add_write(Operation::Update, Arc::clone(&new_record), value_len)
+            {
+                // Atomic operation succeeded in memory
+                let _ = e;
+            }
+
+            if let Err(e) =
+                wb.add_write(Operation::Delete, old_record, value_len)
+            {
+                // Atomic operation succeeded in memory
+                let _ = e;
+            }
+        }
     }
 
     pub(super) fn get_timestamp(&self) -> u64 {
@@ -419,33 +597,5 @@ impl FunKV {
 
     pub(super) fn calculate_record_size(key_len: usize, value_len: usize) -> usize {
         mem::size_of::<Record>() + key_len + value_len
-    }
-
-    pub(super) fn validate_key(&self, key: &[u8]) -> Result<()> {
-        if key.is_empty() || key.len() > MAX_KEY_SIZE {
-            return Err(DbError::InvalidKeySize);
-        }
-
-        Ok(())
-    }
-
-    pub(super) fn validate_key_value(&self, key: &[u8], value: &[u8]) -> Result<()> {
-        self.validate_key(key)?;
-
-        if value.is_empty() || value.len() > MAX_VALUE_SIZE {
-            return Err(DbError::InvalidValueSize);
-        }
-
-        Ok(())
-    }
-
-    pub(super) fn check_memory_limit(&self, size: usize) -> bool {
-        match self.max_memory {
-            Some(limit) => {
-                let current = self.stats.memory_usage.load(Ordering::Acquire);
-                current + size <= limit
-            }
-            None => true,
-        }
     }
 }

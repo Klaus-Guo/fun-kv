@@ -289,6 +289,14 @@ impl WriteBuffer {
     }
 }
 
+impl Drop for WriteBuffer {
+    fn drop(&mut self) {
+        if !self.shutdown.load(Ordering::Acquire) {
+            self.complete_shutdown();
+        }
+    }
+}
+
 fn write_buffer_worker(ctx: WorkerContext, flush_rx: Receiver<FlushRequest>) {
     let worker_id = ctx.worker_id;
     let format = get_format(ctx.format_version);

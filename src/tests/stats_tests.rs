@@ -3,7 +3,7 @@ use std::{
     thread,
 };
 
-use fun_kv::stats::Statistics;
+use crate::stats::Statistics;
 
 #[test]
 fn test_statistics_creation() {
